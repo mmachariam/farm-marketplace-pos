@@ -1,28 +1,26 @@
 // LoginPage — SokoMoja
-// Reads state.message passed by PublicMarketplace when visitor
-// clicks "Add to cart" without being logged in.
-// Shows a friendly banner with both Sign In and Sign Up options.
+// Wired to real backend: POST /api/auth/login
 
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
+import { apiRequest } from "../utils/api";
 import { setToken, setUser } from "../utils/auth";
 
 export default function LoginPage() {
   const navigate  = useNavigate();
   const location  = useLocation();
 
-  // Message passed from PublicMarketplace (or any redirect source)
   const redirectMessage = location.state?.message || null;
   const returnTo        = location.state?.returnTo || null;
 
-  const [email,       setEmail]       = useState("");
-  const [password,    setPassword]    = useState("");
-  const [rememberMe,  setRememberMe]  = useState(false);
-  const [showPass,    setShowPass]    = useState(false);
-  const [loading,     setLoading]     = useState(false);
-  const [generalError,setGeneralError]= useState("");
-  const [errors,      setErrors]      = useState({ email: "", password: "" });
+  const [email,        setEmail]        = useState("");
+  const [password,     setPassword]     = useState("");
+  const [rememberMe,   setRememberMe]   = useState(false);
+  const [showPass,     setShowPass]     = useState(false);
+  const [loading,      setLoading]      = useState(false);
+  const [generalError, setGeneralError] = useState("");
+  const [errors,       setErrors]       = useState({ email: "", password: "" });
 
   const validate = () => {
     const errs = { email: "", password: "" };
@@ -39,29 +37,27 @@ export default function LoginPage() {
     e.preventDefault();
     setGeneralError("");
     if (!validate()) return;
+
     setLoading(true);
     try {
-      // TODO: replace with real API call
-      // const data = await apiRequest("/auth/login", "POST", { email, password });
-      // setToken(data.token); setUser(data.user);
-      // navigate based on data.user.role
+      // POST /api/auth/login
+      const data = await apiRequest("/auth/login", "POST", { email, password });
 
-      await new Promise((r) => setTimeout(r, 1000));
-      const lower   = email.toLowerCase();
-      const isAdmin  = lower.includes("admin");
-      const isSeller = lower.includes("farmer") || lower.includes("seller");
-      const role     = isAdmin ? "admin" : isSeller ? "seller" : "buyer";
+      // Store JWT token and user info in localStorage
+      setToken(data.token);
+      setUser(data.user);
 
-      setToken("fake-jwt-token");
-      setUser({ name: email.split("@")[0], role });
-
-      // After login, send buyer back to buyer dashboard (cart will be there)
-      if (isAdmin)    navigate("/admin/overview");
-      else if (isSeller) navigate("/seller/dashboard");
-      else            navigate("/buyer/dashboard");
+      // Redirect based on role returned from backend
+      const role = data.user.role;
+      if (role === "admin")  navigate("/admin/overview");
+      else if (role === "seller") navigate("/seller/dashboard");
+      else navigate("/buyer/dashboard");
 
     } catch (err) {
-      setGeneralError(err.message || "Invalid email or password. Please try again.");
+      // Show field-level errors if Laravel returned them
+      if (err.errors?.email)    setErrors((p) => ({ ...p, email:    err.errors.email[0] }));
+      if (err.errors?.password) setErrors((p) => ({ ...p, password: err.errors.password[0] }));
+      if (!err.errors)          setGeneralError(err.message || "Invalid email or password.");
     } finally {
       setLoading(false);
     }
@@ -70,29 +66,17 @@ export default function LoginPage() {
   return (
     <AuthLayout>
 
-      {/* ── Redirect message banner (shown when coming from marketplace) ── */}
+      {/* Banner shown when redirected from public marketplace */}
       {redirectMessage && (
-        <div
-          className="rounded-3 p-3 mb-4 d-flex align-items-start gap-3"
-          style={{ background: "#d1e7dd", border: "1px solid #a3cfbb" }}
-        >
+        <div className="rounded-3 p-3 mb-4 d-flex align-items-start gap-3"
+          style={{ background: "#d1e7dd", border: "1px solid #a3cfbb" }}>
           <i className="bi bi-cart3 text-success mt-1 flex-shrink-0" style={{ fontSize: "1.1rem" }}></i>
           <div>
-            <div className="fw-semibold text-success" style={{ fontSize: "0.875rem" }}>
-              Almost there!
-            </div>
-            <div style={{ fontSize: "0.82rem", color: "#0a3622" }}>
-              {redirectMessage}
-            </div>
-            {/* Offer sign up as an alternative */}
+            <div className="fw-semibold text-success" style={{ fontSize: "0.875rem" }}>Almost there!</div>
+            <div style={{ fontSize: "0.82rem", color: "#0a3622" }}>{redirectMessage}</div>
             <div className="mt-2" style={{ fontSize: "0.82rem" }}>
               No account yet?{" "}
-              <Link
-                to="/register?role=buyer"
-                state={returnTo ? { returnTo } : undefined}
-                className="fw-semibold"
-                style={{ color: "#198754" }}
-              >
+              <Link to="/register?role=buyer" className="fw-semibold" style={{ color: "#198754" }}>
                 Create one free — it only takes a minute
               </Link>
             </div>
@@ -112,15 +96,10 @@ export default function LoginPage() {
       )}
 
       <form onSubmit={handleLogin} noValidate>
-
-        {/* Email */}
         <div className="mb-3">
-          <label htmlFor="login-email" className="form-label fw-semibold small">
-            Email address
-          </label>
+          <label htmlFor="login-email" className="form-label fw-semibold small">Email address</label>
           <input
-            id="login-email"
-            type="email"
+            id="login-email" type="email"
             className={`form-control ${errors.email ? "is-invalid" : ""}`}
             placeholder="you@example.com"
             value={email}
@@ -129,11 +108,8 @@ export default function LoginPage() {
           {errors.email && <div className="invalid-feedback">{errors.email}</div>}
         </div>
 
-        {/* Password */}
         <div className="mb-3">
-          <label htmlFor="login-password" className="form-label fw-semibold small">
-            Password
-          </label>
+          <label htmlFor="login-password" className="form-label fw-semibold small">Password</label>
           <div className="input-group">
             <input
               id="login-password"
@@ -143,62 +119,42 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors((p) => ({ ...p, password: "" })); }}
             />
-            <button
-              type="button"
-              className="btn btn-outline-secondary"
-              onClick={() => setShowPass(!showPass)}
-              aria-label="Toggle password visibility"
-            >
+            <button type="button" className="btn btn-outline-secondary"
+              onClick={() => setShowPass(!showPass)}>
               <i className={`bi bi-${showPass ? "eye-slash" : "eye"}`}></i>
             </button>
             {errors.password && <div className="invalid-feedback">{errors.password}</div>}
           </div>
         </div>
 
-        {/* Remember me + Forgot password */}
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div className="form-check">
-            <input
-              className="form-check-input"
-              type="checkbox"
-              id="rememberMe"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-            />
+            <input className="form-check-input" type="checkbox" id="rememberMe"
+              checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
             <label className="form-check-label small text-muted" htmlFor="rememberMe">
               Remember me
             </label>
           </div>
-          <Link
-            to="/forgot-password"
-            style={{ fontSize: "0.82rem", color: "#198754", textDecoration: "none" }}
-          >
+          <Link to="/forgot-password"
+            style={{ fontSize: "0.82rem", color: "#198754", textDecoration: "none" }}>
             Forgot password?
           </Link>
         </div>
 
-        {/* Submit */}
-        <button
-          type="submit"
-          className="btn btn-success w-100 fw-semibold py-2 mb-3"
-          disabled={loading}
-        >
-          {loading ? (
-            <><span className="spinner-border spinner-border-sm me-2" role="status"></span>Signing in…</>
-          ) : (
-            <><i className="bi bi-box-arrow-in-right me-2"></i>Sign in</>
-          )}
+        <button type="submit" className="btn btn-success w-100 fw-semibold py-2 mb-3"
+          disabled={loading}>
+          {loading
+            ? <><span className="spinner-border spinner-border-sm me-2"></span>Signing in…</>
+            : <><i className="bi bi-box-arrow-in-right me-2"></i>Sign in</>}
         </button>
       </form>
 
-      {/* Divider */}
       <div className="d-flex align-items-center gap-2 mb-3">
         <hr className="flex-grow-1 m-0" />
         <span className="text-muted small px-1">or</span>
         <hr className="flex-grow-1 m-0" />
       </div>
 
-      {/* Google */}
       <button className="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-2 mb-4">
         <svg width="18" height="18" viewBox="0 0 48 48">
           <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/>
@@ -211,11 +167,8 @@ export default function LoginPage() {
 
       <p className="text-center text-muted" style={{ fontSize: "0.875rem" }}>
         New to SokoMoja?{" "}
-        <Link to="/register" style={{ color: "#198754", fontWeight: 600 }}>
-          Create a free account
-        </Link>
+        <Link to="/register" style={{ color: "#198754", fontWeight: 600 }}>Create a free account</Link>
       </p>
-
     </AuthLayout>
   );
 }

@@ -1,19 +1,7 @@
-// ===========================================
-// SELLER - ADD PRODUCT PAGE
-// Form for farmers/sellers to list a new product.
-//
-// Maps directly to the `products` + `inventory` tables:
-// - product_name, category_id, description, price, image_url → products
-// - stock_quantity → inventory (created alongside the product)
-//
-// Flow:
-// 1. Seller fills the form
-// 2. Frontend validates required fields
-// 3. POST /api/seller/products (wired later)
-// 4. On success, redirect to /seller/products
-// ===========================================
+// SellerAddProduct — SokoMoja
+// Wired to POST /api/seller/products and GET /api/categories
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
 import { apiRequest } from "../../utils/api";
@@ -31,106 +19,83 @@ function SellerAddProduct() {
     { label: "Profile",    icon: "bi-person-circle",  path: "/seller/profile",     active: false },
   ];
 
-  // ---- FORM STATE ----
   const [formData, setFormData] = useState({
-    productName: "",
-    categoryId: "",
-    price: "",
-    unit: "kg",
-    stockQuantity: "",
-    description: "",
-    image: null, // File object, handled separately from text fields
+    name:              "",
+    category_id:       "",
+    price:             "",
+    unit:              "kg",
+    initial_quantity:  "",
+    low_stock_threshold: "10",
+    description:       "",
+    image_url:         "",
   });
 
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [errors,     setErrors]     = useState({});
+  const [loading,    setLoading]    = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
 
-  // ---- HARDCODED CATEGORIES ----
-  // Later: fetch from GET /api/categories (matches the `categories` table)
-  const categories = [
-    { category_id: 1, category_name: "Vegetables" },
-    { category_id: 2, category_name: "Cereals" },
-    { category_id: 3, category_name: "Fruits" },
-    { category_id: 4, category_name: "Dairy" },
-  ];
+  // Load categories on mount
+  useEffect(() => {
+    apiRequest("/categories")
+      .then((res) => setCategories(res.data || []))
+      .catch(() => {}); // non-critical — form still works without them
+  }, []);
 
-  // ---- GENERIC CHANGE HANDLER for text/select inputs ----
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  // ---- FILE INPUT HANDLER ----
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    setFormData((prev) => ({ ...prev, image: file }));
-  };
-
-  // ---- VALIDATION ----
   const validate = () => {
     const newErrors = {};
-
-    if (!formData.productName.trim())
-      newErrors.productName = "Product name is required";
-
-    if (!formData.categoryId)
-      newErrors.categoryId = "Please select a category";
-
+    if (!formData.name.trim())
+      newErrors.name = "Product name is required";
+    if (!formData.category_id)
+      newErrors.category_id = "Please select a category";
     if (!formData.price)
       newErrors.price = "Price is required";
     else if (isNaN(formData.price) || Number(formData.price) <= 0)
       newErrors.price = "Enter a valid price greater than 0";
-
-    if (!formData.stockQuantity)
-      newErrors.stockQuantity = "Initial stock quantity is required";
-    else if (isNaN(formData.stockQuantity) || Number(formData.stockQuantity) < 0)
-      newErrors.stockQuantity = "Enter a valid stock quantity";
-
+    if (formData.initial_quantity === "")
+      newErrors.initial_quantity = "Initial stock quantity is required";
+    else if (isNaN(formData.initial_quantity) || Number(formData.initial_quantity) < 0)
+      newErrors.initial_quantity = "Enter a valid stock quantity";
+    if (!formData.description.trim())
+      newErrors.description = "Description is required";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // ---- SUBMIT HANDLER ----
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSuccessMsg("");
-
     if (!validate()) return;
-
     setLoading(true);
 
     try {
-      // TODO: Replace with real API call once backend is ready.
-      // Since we're uploading a file, use FormData instead of JSON:
-      //
-      // const form = new FormData();
-      // form.append("product_name", formData.productName);
-      // form.append("category_id", formData.categoryId);
-      // form.append("price", formData.price);
-      // form.append("stock_quantity", formData.stockQuantity);
-      // form.append("description", formData.description);
-      // if (formData.image) form.append("image", formData.image);
-      //
-      // const response = await fetch("http://localhost:8000/api/seller/products", {
-      //   method: "POST",
-      //   headers: { Authorization: `Bearer ${getToken()}` }, // no Content-Type - browser sets it for FormData
-      //   body: form,
-      // });
-      // if (!response.ok) throw new Error("Failed to add product");
-
-      // TEMPORARY: simulate success
-      await new Promise((res) => setTimeout(res, 1000));
-      console.log("New product:", formData);
+      await apiRequest("/seller/products", "POST", {
+        name:                 formData.name,
+        category_id:          Number(formData.category_id),
+        description:          formData.description,
+        price:                Number(formData.price),
+        unit:                 formData.unit,
+        initial_quantity:     Number(formData.initial_quantity),
+        low_stock_threshold:  formData.low_stock_threshold !== "" ? Number(formData.low_stock_threshold) : undefined,
+        image_url:            formData.image_url.trim() || undefined,
+      });
 
       setSuccessMsg("Product listed successfully!");
-
-      // Redirect back to the products list after a short pause
       setTimeout(() => navigate("/seller/products"), 1200);
-
     } catch (err) {
-      setErrors({ general: err.message || "Failed to add product. Please try again." });
+      if (err.errors) {
+        const mapped = {};
+        Object.entries(err.errors).forEach(([k, v]) => { mapped[k] = v[0]; });
+        setErrors(mapped);
+      } else {
+        setErrors({ general: err.message || "Failed to add product. Please try again." });
+      }
     } finally {
       setLoading(false);
     }
@@ -139,14 +104,12 @@ function SellerAddProduct() {
   return (
     <DashboardLayout title="Add product" navItems={navItems}>
 
-      {/* Success message */}
       {successMsg && (
         <div style={{ background: "#EAF3DE", color: "#27500A", padding: "12px 16px", borderRadius: "8px", marginBottom: "16px", fontSize: "14px" }}>
           ✅ {successMsg}
         </div>
       )}
 
-      {/* General error message */}
       {errors.general && (
         <div className="auth-error-banner">⚠️ {errors.general}</div>
       )}
@@ -154,55 +117,46 @@ function SellerAddProduct() {
       <form onSubmit={handleSubmit} noValidate>
         <div className="dash-table-wrap" style={{ padding: "24px" }}>
 
-          {/* Two-column layout for the form fields */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
 
-            {/* ---- LEFT COLUMN ---- */}
+            {/* ── LEFT COLUMN ── */}
             <div>
 
-              {/* Product name */}
               <div className="form-group">
-                <label htmlFor="productName">Product name</label>
+                <label htmlFor="name">Product name</label>
                 <input
-                  id="productName"
-                  name="productName"
-                  type="text"
-                  placeholder="e.g. Tomatoes"
-                  value={formData.productName}
+                  id="name" name="name" type="text"
+                  placeholder="e.g. Fresh Tomatoes"
+                  value={formData.name}
                   onChange={handleChange}
-                  className={errors.productName ? "input-error" : ""}
+                  className={errors.name ? "input-error" : ""}
                 />
-                {errors.productName && <span className="field-error">{errors.productName}</span>}
+                {errors.name && <span className="field-error">{errors.name}</span>}
               </div>
 
-              {/* Category */}
               <div className="form-group">
-                <label htmlFor="categoryId">Category</label>
+                <label htmlFor="category_id">Category</label>
                 <select
-                  id="categoryId"
-                  name="categoryId"
-                  value={formData.categoryId}
+                  id="category_id" name="category_id"
+                  value={formData.category_id}
                   onChange={handleChange}
-                  className={errors.categoryId ? "input-error" : ""}
+                  className={errors.category_id ? "input-error" : ""}
                 >
                   <option value="">Select a category</option>
                   {categories.map((cat) => (
                     <option key={cat.category_id} value={cat.category_id}>
-                      {cat.category_name}
+                      {cat.name}
                     </option>
                   ))}
                 </select>
-                {errors.categoryId && <span className="field-error">{errors.categoryId}</span>}
+                {errors.category_id && <span className="field-error">{errors.category_id}</span>}
               </div>
 
-              {/* Price + Unit side by side */}
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "10px" }}>
                 <div className="form-group">
                   <label htmlFor="price">Price per unit (KES)</label>
                   <input
-                    id="price"
-                    name="price"
-                    type="number"
+                    id="price" name="price" type="number" min="0" step="0.01"
                     placeholder="0.00"
                     value={formData.price}
                     onChange={handleChange}
@@ -210,7 +164,6 @@ function SellerAddProduct() {
                   />
                   {errors.price && <span className="field-error">{errors.price}</span>}
                 </div>
-
                 <div className="form-group">
                   <label htmlFor="unit">Unit</label>
                   <select id="unit" name="unit" value={formData.unit} onChange={handleChange}>
@@ -218,73 +171,71 @@ function SellerAddProduct() {
                     <option value="crate">crate</option>
                     <option value="bunch">bunch</option>
                     <option value="litre">litre</option>
+                    <option value="piece">piece</option>
                   </select>
                 </div>
               </div>
 
             </div>
 
-            {/* ---- RIGHT COLUMN ---- */}
+            {/* ── RIGHT COLUMN ── */}
             <div>
 
-              {/* Initial stock quantity */}
-              <div className="form-group">
-                <label htmlFor="stockQuantity">Initial stock quantity</label>
-                <input
-                  id="stockQuantity"
-                  name="stockQuantity"
-                  type="number"
-                  placeholder="0"
-                  value={formData.stockQuantity}
-                  onChange={handleChange}
-                  className={errors.stockQuantity ? "input-error" : ""}
-                />
-                {errors.stockQuantity && <span className="field-error">{errors.stockQuantity}</span>}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                <div className="form-group">
+                  <label htmlFor="initial_quantity">Initial stock qty</label>
+                  <input
+                    id="initial_quantity" name="initial_quantity" type="number" min="0"
+                    placeholder="0"
+                    value={formData.initial_quantity}
+                    onChange={handleChange}
+                    className={errors.initial_quantity ? "input-error" : ""}
+                  />
+                  {errors.initial_quantity && <span className="field-error">{errors.initial_quantity}</span>}
+                </div>
+                <div className="form-group">
+                  <label htmlFor="low_stock_threshold">Low stock alert</label>
+                  <input
+                    id="low_stock_threshold" name="low_stock_threshold" type="number" min="0"
+                    placeholder="10"
+                    value={formData.low_stock_threshold}
+                    onChange={handleChange}
+                  />
+                </div>
               </div>
 
-              {/* Description */}
               <div className="form-group">
                 <label htmlFor="description">Description</label>
                 <textarea
-                  id="description"
-                  name="description"
-                  placeholder="Describe your produce — freshness, harvest date, etc."
+                  id="description" name="description"
+                  placeholder="Describe your produce — freshness, harvest date, growing method…"
                   value={formData.description}
                   onChange={handleChange}
                   rows={4}
+                  className={errors.description ? "input-error" : ""}
                   style={{
-                    fontSize: "14px",
-                    padding: "10px 14px",
-                    border: "1px solid #e0ded5",
-                    borderRadius: "8px",
-                    background: "#f9f8f5",
-                    fontFamily: "inherit",
-                    resize: "vertical",
+                    fontSize: "14px", padding: "10px 14px",
+                    border: `1px solid ${errors.description ? "#e74c3c" : "#e0ded5"}`,
+                    borderRadius: "8px", background: "#f9f8f5",
+                    fontFamily: "inherit", resize: "vertical", width: "100%", boxSizing: "border-box",
                   }}
                 />
+                {errors.description && <span className="field-error">{errors.description}</span>}
               </div>
 
-              {/* Product image */}
               <div className="form-group">
-                <label htmlFor="image">Product image</label>
+                <label htmlFor="image_url">Product image URL <span style={{ color: "#999", fontWeight: 400 }}>(optional)</span></label>
                 <input
-                  id="image"
-                  name="image"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
+                  id="image_url" name="image_url" type="url"
+                  placeholder="https://…"
+                  value={formData.image_url}
+                  onChange={handleChange}
                 />
-                {formData.image && (
-                  <span style={{ fontSize: "12px", color: "#73726c" }}>
-                    Selected: {formData.image.name}
-                  </span>
-                )}
               </div>
 
             </div>
           </div>
 
-          {/* ---- SUBMIT BUTTON ---- */}
           <button
             type="submit"
             className="btn-auth"

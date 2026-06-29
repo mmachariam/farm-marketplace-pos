@@ -14,101 +14,90 @@ import { useState, useEffect } from "react";
 import DashboardLayout from "../../components/DashboardLayout";
 import { apiRequest } from "../../utils/api";
 
-function AdminZones() {
+export default function AdminZones() {
   const navItems = [
     { label: "Overview",  icon: "bi-grid-1x2",          path: "/admin/overview",  active: false },
     { label: "Users",     icon: "bi-people",            path: "/admin/users",     active: false },
     { label: "Zones",     icon: "bi-geo-alt",           path: "/admin/zones",     active: true  },
+    { label: "Analytics", icon: "bi-bar-chart-line",    path: "/admin/analytics", active: false },
     { label: "Reports",   icon: "bi-file-earmark-text", path: "/admin/reports",   active: false },
   ];
 
-  const [zones, setZones] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [zones,      setZones]      = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState("");
+  const [showForm,   setShowForm]   = useState(false);
+  const [saving,     setSaving]     = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
 
-  // ---- ADD ZONE FORM STATE ----
-  const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ zoneName: "", region: "", pickupAddress: "" });
+  const [formData,   setFormData]   = useState({
+    zoneName:      "",
+    region:        "",
+    pickupAddress: "",
+  });
   const [formErrors, setFormErrors] = useState({});
-  const [saving, setSaving] = useState(false);
 
+  // ── Load zones on mount ───────────────────────────────────────────
   useEffect(() => {
     async function fetchZones() {
+      setLoading(true);
+      setError("");
       try {
-        setLoading(true);
-        setError("");
-
-        // TODO: replace with real API call
-        // const data = await apiRequest("/admin/zones");
-        // setZones(data);
-
-        // TEMPORARY sample data
-        await new Promise((res) => setTimeout(res, 500));
-        setZones([
-          { zone_id: 1, zone_name: "Kiambu Zone", region: "Kiambu", pickup_address: "Kiambu Town Market, Gate 3", farmer_count: 34, active_orders: 12 },
-          { zone_id: 2, zone_name: "Nakuru Zone", region: "Nakuru", pickup_address: "Nakuru Central Market",     farmer_count: 21, active_orders: 8  },
-          { zone_id: 3, zone_name: "Meru Zone",   region: "Meru",   pickup_address: "Meru Town Bus Stage",       farmer_count: 18, active_orders: 5  },
-        ]);
-
+        const data = await apiRequest("/admin/zones");
+        setZones(data.data);
       } catch (err) {
         setError(err.message || "Failed to load pickup zones.");
       } finally {
         setLoading(false);
       }
     }
-
     fetchZones();
   }, []);
 
-  // ---- FORM HANDLERS ----
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    if (formErrors[name]) setFormErrors((prev) => ({ ...prev, [name]: "" }));
+    setFormData((p) => ({ ...p, [name]: value }));
+    if (formErrors[name]) setFormErrors((p) => ({ ...p, [name]: "" }));
   };
 
   const validate = () => {
     const errs = {};
-    if (!formData.zoneName.trim()) errs.zoneName = "Zone name is required";
-    if (!formData.region.trim()) errs.region = "Region is required";
+    if (!formData.zoneName.trim())      errs.zoneName      = "Zone name is required";
+    if (!formData.region.trim())        errs.region        = "Region is required";
     if (!formData.pickupAddress.trim()) errs.pickupAddress = "Pickup address is required";
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
+  // ── Add new zone ──────────────────────────────────────────────────
   const handleAddZone = async (e) => {
     e.preventDefault();
     if (!validate()) return;
-
     setSaving(true);
 
     try {
-      // TODO: replace with real API call
-      // const newZone = await apiRequest("/admin/zones", "POST", {
-      //   zone_name: formData.zoneName,
-      //   region: formData.region,
-      //   pickup_address: formData.pickupAddress,
-      // });
-      // setZones((prev) => [...prev, newZone]);
-
-      // TEMPORARY: simulate adding locally
-      await new Promise((res) => setTimeout(res, 600));
-      const newZone = {
-        zone_id: Date.now(), // temporary unique id
-        zone_name: formData.zoneName,
-        region: formData.region,
+      const data = await apiRequest("/admin/zones", "POST", {
+        zone_name:      formData.zoneName,
+        region:         formData.region,
         pickup_address: formData.pickupAddress,
-        farmer_count: 0,
-        active_orders: 0,
-      };
-      setZones((prev) => [...prev, newZone]);
+      });
 
-      // Reset form
+      setZones((prev) => [...prev, data.data]);
       setFormData({ zoneName: "", region: "", pickupAddress: "" });
       setShowForm(false);
+      setSuccessMsg("Pickup zone added successfully.");
+      setTimeout(() => setSuccessMsg(""), 3500);
 
     } catch (err) {
-      alert(`Failed to add zone: ${err.message}`);
+      if (err.errors) {
+        const mapped = {};
+        if (err.errors.zone_name)      mapped.zoneName      = err.errors.zone_name[0];
+        if (err.errors.region)         mapped.region        = err.errors.region[0];
+        if (err.errors.pickup_address) mapped.pickupAddress = err.errors.pickup_address[0];
+        setFormErrors(mapped);
+      } else {
+        setError(err.message || "Failed to add zone.");
+      }
     } finally {
       setSaving(false);
     }
@@ -117,85 +106,117 @@ function AdminZones() {
   return (
     <DashboardLayout title="Pickup zones" navItems={navItems}>
 
-      {/* ---- ADD ZONE BUTTON / FORM TOGGLE ---- */}
-      <div style={{ marginBottom: "16px" }}>
+      {successMsg && (
+        <div className="alert alert-success d-flex align-items-center gap-2 py-2 small mb-3">
+          <i className="bi bi-check-circle-fill"></i> {successMsg}
+        </div>
+      )}
+
+      {error && <div className="alert alert-danger mb-3">{error}</div>}
+
+      {/* Add zone button */}
+      <div className="mb-3">
         <button
-          className="dash-btn-add"
-          style={{ background: showForm ? "#fff" : "#1D9E75", color: showForm ? "#73726c" : "#fff", border: showForm ? "1px solid #e0ded5" : "none", width: "auto", padding: "10px 20px" }}
-          onClick={() => setShowForm(!showForm)}
-        >
-          {showForm ? "Cancel" : "+ Add zone"}
+          className="btn btn-success btn-sm d-flex align-items-center gap-2"
+          onClick={() => setShowForm(!showForm)}>
+          {showForm
+            ? <><i className="bi bi-x"></i> Cancel</>
+            : <><i className="bi bi-plus"></i> Add zone</>}
         </button>
       </div>
 
-      {/* ---- ADD ZONE FORM ---- */}
+      {/* Add zone form */}
       {showForm && (
-        <form onSubmit={handleAddZone} className="dash-table-wrap" style={{ padding: "20px", marginBottom: "20px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px", alignItems: "start" }}>
+        <div className="card border-0 shadow-sm mb-4">
+          <div className="card-body">
+            <form onSubmit={handleAddZone} noValidate>
+              <div className="row g-3">
+                <div className="col-12 col-md-4">
+                  <label className="form-label fw-semibold small">Zone name</label>
+                  <input className={`form-control ${formErrors.zoneName ? "is-invalid" : ""}`}
+                    name="zoneName" placeholder="e.g. Eldoret Zone"
+                    value={formData.zoneName} onChange={handleChange} />
+                  {formErrors.zoneName && <div className="invalid-feedback">{formErrors.zoneName}</div>}
+                </div>
 
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label htmlFor="zoneName">Zone name</label>
-              <input
-                id="zoneName"
-                name="zoneName"
-                type="text"
-                placeholder="e.g. Eldoret Zone"
-                value={formData.zoneName}
-                onChange={handleChange}
-                className={formErrors.zoneName ? "input-error" : ""}
-              />
-              {formErrors.zoneName && <span className="field-error">{formErrors.zoneName}</span>}
-            </div>
+                <div className="col-12 col-md-3">
+                  <label className="form-label fw-semibold small">Region</label>
+                  <select className={`form-select ${formErrors.region ? "is-invalid" : ""}`}
+                    name="region" value={formData.region} onChange={handleChange}>
+                    <option value="">Select region</option>
+                    {["Kiambu","Nakuru","Meru","Nairobi","Eldoret","Kisumu","Mombasa","Kakamega"].map((r) => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                  {formErrors.region && <div className="invalid-feedback">{formErrors.region}</div>}
+                </div>
 
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label htmlFor="region">Region</label>
-              <input
-                id="region"
-                name="region"
-                type="text"
-                placeholder="e.g. Uasin Gishu"
-                value={formData.region}
-                onChange={handleChange}
-                className={formErrors.region ? "input-error" : ""}
-              />
-              {formErrors.region && <span className="field-error">{formErrors.region}</span>}
-            </div>
+                <div className="col-12 col-md-5">
+                  <label className="form-label fw-semibold small">Pickup address</label>
+                  <input className={`form-control ${formErrors.pickupAddress ? "is-invalid" : ""}`}
+                    name="pickupAddress" placeholder="e.g. Eldoret Town Market, Gate 1"
+                    value={formData.pickupAddress} onChange={handleChange} />
+                  {formErrors.pickupAddress && <div className="invalid-feedback">{formErrors.pickupAddress}</div>}
+                </div>
+              </div>
 
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label htmlFor="pickupAddress">Pickup address</label>
-              <input
-                id="pickupAddress"
-                name="pickupAddress"
-                type="text"
-                placeholder="e.g. Eldoret Town Market"
-                value={formData.pickupAddress}
-                onChange={handleChange}
-                className={formErrors.pickupAddress ? "input-error" : ""}
-              />
-              {formErrors.pickupAddress && <span className="field-error">{formErrors.pickupAddress}</span>}
-            </div>
-
+              <button type="submit" className="btn btn-success btn-sm mt-3 px-4"
+                disabled={saving}>
+                {saving
+                  ? <><span className="spinner-border spinner-border-sm me-2"></span>Saving…</>
+                  : "Save zone"}
+              </button>
+            </form>
           </div>
-
-          <button type="submit" className="btn-auth" style={{ marginTop: "14px", maxWidth: "180px" }} disabled={saving}>
-            {saving ? "Saving…" : "Save zone"}
-          </button>
-        </form>
+        </div>
       )}
 
-      {loading && <div className="dash-loading">Loading zones…</div>}
-      {error && <div className="dash-error">⚠️ {error}</div>}
+      {/* Zones list */}
+      {loading && (
+        <div className="text-center py-5">
+          <span className="spinner-border text-success"></span>
+          <div className="text-muted small mt-2">Loading zones…</div>
+        </div>
+      )}
 
-      {/* ---- ZONES LIST ---- */}
-      {!loading && !error && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+      {!loading && zones.length === 0 && !error && (
+        <div className="text-center text-muted py-5">
+          No pickup zones yet. Add the first one above.
+        </div>
+      )}
+
+      {!loading && zones.length > 0 && (
+        <div className="row g-3">
           {zones.map((zone) => (
-            <div className="dash-table-wrap" key={zone.zone_id} style={{ padding: "16px 20px" }}>
-              <div style={{ fontWeight: 600, fontSize: "14px", marginBottom: "4px" }}>
-                📍 {zone.zone_name}
-              </div>
-              <div style={{ fontSize: "12px", color: "#73726c" }}>
-                Pickup: {zone.pickup_address} · {zone.farmer_count} farmers · {zone.active_orders} active orders
+            <div className="col-12 col-md-6 col-lg-4" key={zone.zone_id}>
+              <div className="card border-0 shadow-sm h-100">
+                <div className="card-body">
+                  <div className="d-flex align-items-start gap-3">
+                    <div className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                      style={{ width: 42, height: 42, background: "#d1e7dd" }}>
+                      <i className="bi bi-geo-alt-fill text-success"></i>
+                    </div>
+                    <div>
+                      <div className="fw-bold mb-1">{zone.zone_name}</div>
+                      <div className="text-muted small mb-1">
+                        <i className="bi bi-building me-1"></i>{zone.pickup_address}
+                      </div>
+                      <div className="d-flex gap-2 flex-wrap mt-2">
+                        <span className="badge bg-success-subtle text-success rounded-pill"
+                          style={{ fontSize: "0.72rem" }}>
+                          {zone.region}
+                        </span>
+                        {zone.farmer_count !== undefined && (
+                          <span className="badge rounded-pill badge-confirmed"
+                            style={{ fontSize: "0.72rem" }}>
+                            <i className="bi bi-flower2 me-1"></i>
+                            {zone.farmer_count} farmer{zone.farmer_count !== 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           ))}
@@ -205,5 +226,3 @@ function AdminZones() {
     </DashboardLayout>
   );
 }
-
-export default AdminZones;

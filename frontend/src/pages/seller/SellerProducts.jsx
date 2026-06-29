@@ -1,9 +1,10 @@
 // SellerProducts — SokoMoja
-// Updated navItems with Bootstrap Icons and full farmer sidebar.
+// Wired to GET /api/seller/products
 
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
+import { apiRequest } from "../../utils/api";
 
 function SellerProducts() {
   const navItems = [
@@ -17,34 +18,72 @@ function SellerProducts() {
   ];
 
   const [products, setProducts] = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState("");
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState("");
+
+  // Edit state — inline toggle for product status
+  const [editingId,   setEditingId]   = useState(null);
+  const [editStatus,  setEditStatus]  = useState("active");
+  const [editPrice,   setEditPrice]   = useState("");
+  const [saving,      setSaving]      = useState(false);
+  const [successMsg,  setSuccessMsg]  = useState("");
 
   useEffect(() => {
-    async function fetchProducts() {
-      try {
-        setLoading(true);
-        await new Promise((r) => setTimeout(r, 500));
-        setProducts([
-          { product_id: 1, product_name: "Broccoli",     category: "Vegetables", price: 80, stock_quantity: 40  },
-          { product_id: 2, product_name: "Kale (Sukuma)",category: "Vegetables", price: 30, stock_quantity: 5   },
-          { product_id: 3, product_name: "Maize",        category: "Cereals",    price: 45, stock_quantity: 0   },
-          { product_id: 4, product_name: "Avocados",     category: "Fruits",     price: 15, stock_quantity: 150 },
-        ]);
-      } catch (err) { setError(err.message || "Failed to load products."); }
-      finally { setLoading(false); }
-    }
     fetchProducts();
   }, []);
 
-  const getStatus = (qty) => {
+  async function fetchProducts() {
+    try {
+      setLoading(true);
+      const res = await apiRequest("/seller/products");
+      setProducts(res.data || []);
+    } catch (err) {
+      setError(err.message || "Failed to load products.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const getStatus = (p) => {
+    const qty = p.inventory?.quantity_available ?? 0;
     if (qty === 0) return { label: "Out of stock", cls: "badge-cancelled" };
-    if (qty < 10)  return { label: "Low stock",    cls: "badge-pending"   };
+    if (qty < (p.inventory?.low_stock_threshold ?? 10)) return { label: "Low stock", cls: "badge-pending" };
     return { label: "In stock", cls: "badge-delivered" };
+  };
+
+  const startEdit = (p) => {
+    setEditingId(p.product_id);
+    setEditStatus(p.status);
+    setEditPrice(String(p.price));
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+  };
+
+  const saveEdit = async (productId) => {
+    setSaving(true);
+    try {
+      const res = await apiRequest(`/seller/products/${productId}`, "PATCH", {
+        status: editStatus,
+        price:  Number(editPrice),
+      });
+      setProducts((prev) => prev.map((p) => p.product_id === productId ? res.data : p));
+      setSuccessMsg("Product updated.");
+      setEditingId(null);
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err) {
+      alert("Update failed: " + err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <DashboardLayout title="My products" navItems={navItems}>
+
+      {successMsg && <div className="alert alert-success py-2 small mb-3">{successMsg}</div>}
+
       <div className="d-flex justify-content-end mb-3">
         <Link
           to="/seller/products/add"
@@ -69,26 +108,84 @@ function SellerProducts() {
         <div className="sm-card">
           <table className="table table-hover mb-0" style={{ fontSize: "0.875rem" }}>
             <thead className="table-light">
-              <tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th></th></tr>
+              <tr>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
             </thead>
             <tbody>
               {products.map((p) => {
-                const status = getStatus(p.stock_quantity);
+                const stockStatus = getStatus(p);
+                const qty         = p.inventory?.quantity_available ?? 0;
+                const isEditing   = editingId === p.product_id;
+
                 return (
                   <tr key={p.product_id}>
-                    <td className="fw-semibold">{p.product_name}</td>
-                    <td className="text-muted">{p.category}</td>
-                    <td>KES {p.price}/kg</td>
-                    <td>{p.stock_quantity} kg</td>
-                    <td><span className={`badge rounded-pill ${status.cls}`} style={{ fontSize: "0.72rem" }}>{status.label}</span></td>
+                    <td className="fw-semibold">{p.name}</td>
+                    <td className="text-muted">{p.category?.name ?? "—"}</td>
+
                     <td>
-                      <button
-                        className="btn btn-sm btn-outline-secondary"
-                        style={{ fontSize: "0.72rem" }}
-                        onClick={() => alert(`Edit ${p.product_name} (coming soon)`)}
-                      >
-                        Edit
-                      </button>
+                      {isEditing ? (
+                        <input
+                          type="number" min="0" step="0.01"
+                          className="form-control form-control-sm"
+                          style={{ width: 90 }}
+                          value={editPrice}
+                          onChange={(e) => setEditPrice(e.target.value)}
+                        />
+                      ) : (
+                        <>KES {p.price}/{p.unit}</>
+                      )}
+                    </td>
+
+                    <td>{qty} {p.unit}</td>
+
+                    <td>
+                      {isEditing ? (
+                        <select
+                          className="form-select form-select-sm"
+                          style={{ width: 120 }}
+                          value={editStatus}
+                          onChange={(e) => setEditStatus(e.target.value)}
+                        >
+                          <option value="active">Active</option>
+                          <option value="inactive">Inactive</option>
+                        </select>
+                      ) : (
+                        <span className={`badge rounded-pill ${stockStatus.cls}`} style={{ fontSize: "0.72rem" }}>
+                          {p.status === "inactive" ? "Inactive" : stockStatus.label}
+                        </span>
+                      )}
+                    </td>
+
+                    <td>
+                      {isEditing ? (
+                        <div className="d-flex gap-1">
+                          <button
+                            className="btn btn-sm"
+                            style={{ background: "var(--sm-green)", color: "#fff", border: "none" }}
+                            onClick={() => saveEdit(p.product_id)}
+                            disabled={saving}
+                          >
+                            {saving ? "…" : <i className="bi bi-check"></i>}
+                          </button>
+                          <button className="btn btn-sm btn-outline-secondary" onClick={cancelEdit}>
+                            <i className="bi bi-x"></i>
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          className="btn btn-sm btn-outline-secondary"
+                          style={{ fontSize: "0.72rem" }}
+                          onClick={() => startEdit(p)}
+                        >
+                          Edit
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

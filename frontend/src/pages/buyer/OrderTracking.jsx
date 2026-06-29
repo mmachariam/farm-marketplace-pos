@@ -1,11 +1,12 @@
 // OrderTracking — SokoMoja
 // Buyer can track a specific order's status with a visual progress stepper.
-// Maps to: orders + deliveries tables
+// Maps to: orders + deliveries + payments tables
 // Route: /buyer/orders/:orderId
 
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
+import { apiRequest } from "../../utils/api";
 
 function OrderTracking() {
   const { orderId } = useParams();
@@ -17,38 +18,23 @@ function OrderTracking() {
     { label: "Profile",   icon: "bi-person-circle", path: "/buyer/profile",   active: false },
   ];
 
-  const [order, setOrder]   = useState(null);
+  const [order, setOrder]     = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError]   = useState("");
+  const [error, setError]     = useState("");
 
   // Review state
-  const [showReviewForm, setShowReviewForm] = useState(false);
-  const [reviewRating, setReviewRating]     = useState(5);
-  const [reviewComment, setReviewComment]   = useState("");
+  const [showReviewForm, setShowReviewForm]   = useState(false);
+  const [reviewRating, setReviewRating]       = useState(5);
+  const [reviewComment, setReviewComment]     = useState("");
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
   useEffect(() => {
     async function fetchOrder() {
       try {
         setLoading(true);
-        // TODO: const data = await apiRequest(`/orders/${orderId}`);
-        await new Promise((r) => setTimeout(r, 500));
-        setOrder({
-          order_id: orderId || 1055,
-          date: "2026-06-07",
-          zone: "Nakuru Zone",
-          pickup_address: "Nakuru Central Market",
-          items: [
-            { name: "Maize", quantity: 20, unit_price: 45, subtotal: 900 },
-          ],
-          total: 900,
-          status: "Confirmed",
-          payment_status: "Completed",
-          payment_method: "M-Pesa",
-          seller_name: "Samuel K.",
-          seller_region: "Meru",
-          estimated_date: "2026-06-12",
-        });
+        setError("");
+        const res = await apiRequest(`/orders/${orderId}`);
+        setOrder(res.data);
       } catch (err) {
         setError(err.message || "Failed to load order.");
       } finally {
@@ -60,30 +46,39 @@ function OrderTracking() {
 
   // Progress steps mapped to order statuses
   const steps = [
-    { key: "Pending",   label: "Order placed",    icon: "bi-check-circle" },
-    { key: "Confirmed", label: "Confirmed by farmer", icon: "bi-person-check" },
-    { key: "Delivered", label: "Ready for collection", icon: "bi-geo-alt" },
-    { key: "Delivered", label: "Delivered / Collected", icon: "bi-bag-check" },
+    { key: "Pending",   label: "Order placed",          icon: "bi-check-circle"  },
+    { key: "Confirmed", label: "Confirmed by farmer",   icon: "bi-person-check"  },
+    { key: "Delivered", label: "Ready for collection",  icon: "bi-geo-alt"       },
+    { key: "Delivered", label: "Delivered / Collected", icon: "bi-bag-check"     },
   ];
 
   const statusIndex = {
-    Pending: 0, Confirmed: 1, "In Transit": 2, Delivered: 3
+    Pending: 0, Confirmed: 1, "In Transit": 2, Delivered: 3,
   };
 
-  const currentStep = statusIndex[order?.status] ?? 0;
+  const currentStep = statusIndex[order?.order_status] ?? 0;
 
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
-    // TODO: await apiRequest("/reviews", "POST", { order_id: orderId, rating: reviewRating, comment: reviewComment });
+    // TODO: wire to POST /api/reviews once that endpoint is implemented
     await new Promise((r) => setTimeout(r, 700));
     setReviewSubmitted(true);
     setShowReviewForm(false);
   };
 
   const badgeClass = {
-    Pending: "badge-pending", Confirmed: "badge-confirmed",
-    Delivered: "badge-delivered", Cancelled: "badge-cancelled"
+    Pending:   "badge-pending",
+    Confirmed: "badge-confirmed",
+    Delivered: "badge-delivered",
+    Cancelled: "badge-cancelled",
   };
+
+  // Derived display values
+  const zoneName       = order?.delivery?.zone?.zone_name ?? null;
+  const deliveryAddr   = order?.delivery?.delivery_address ?? null;
+  const locationLabel  = zoneName ?? deliveryAddr ?? "—";
+  const pickupAddress  = order?.delivery?.zone?.pickup_address ?? deliveryAddr ?? "—";
+  const estimatedDate  = order?.delivery?.delivery_date ?? null;
 
   return (
     <DashboardLayout title={`Order #${orderId || "..."}`} navItems={navItems}>
@@ -106,12 +101,20 @@ function OrderTracking() {
             <div className="sm-card p-4 mb-3">
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <h6 className="fw-bold mb-0">Order #{order.order_id}</h6>
-                <span className={`badge rounded-pill ${badgeClass[order.status]}`} style={{ fontSize: "0.75rem" }}>
-                  {order.status}
+                <span
+                  className={`badge rounded-pill ${badgeClass[order.order_status] ?? "badge-pending"}`}
+                  style={{ fontSize: "0.75rem" }}
+                >
+                  {order.order_status}
                 </span>
               </div>
-              <div className="text-muted small mb-1">Placed {order.date} · {order.zone}</div>
-              <div className="text-muted small">Farmer: {order.seller_name} ({order.seller_region})</div>
+              <div className="text-muted small mb-1">
+                Placed{" "}
+                {order.order_date
+                  ? new Date(order.order_date).toLocaleDateString("en-KE", { dateStyle: "medium" })
+                  : "—"}
+                {" "}·{" "}{locationLabel}
+              </div>
             </div>
 
             {/* Progress stepper */}
@@ -144,14 +147,14 @@ function OrderTracking() {
                         >
                           {step.label}
                         </div>
-                        {i === 2 && order.status === "Confirmed" && (
+                        {i === 2 && order.order_status === "Confirmed" && (
                           <div className="text-muted" style={{ fontSize: "0.75rem" }}>
-                            Est. {order.estimated_date}
+                            Est. {estimatedDate ?? "TBD"}
                           </div>
                         )}
-                        {i === 3 && order.status === "Delivered" && (
+                        {i === 3 && order.order_status === "Delivered" && (
                           <div className="text-muted" style={{ fontSize: "0.75rem" }}>
-                            {order.pickup_address}
+                            {pickupAddress}
                           </div>
                         )}
                       </div>
@@ -163,9 +166,14 @@ function OrderTracking() {
 
             {/* Collection point */}
             <div className="sm-card p-4">
-              <h6 className="fw-bold mb-2"><i className="bi bi-geo-alt me-2" style={{ color: "var(--sm-green)" }}></i>Collection point</h6>
-              <div className="fw-semibold" style={{ fontSize: "0.875rem" }}>{order.zone}</div>
-              <div className="text-muted small">{order.pickup_address}</div>
+              <h6 className="fw-bold mb-2">
+                <i className="bi bi-geo-alt me-2" style={{ color: "var(--sm-green)" }}></i>
+                Collection point
+              </h6>
+              <div className="fw-semibold" style={{ fontSize: "0.875rem" }}>
+                {zoneName ?? "Home delivery"}
+              </div>
+              <div className="text-muted small">{pickupAddress}</div>
             </div>
 
           </div>
@@ -177,32 +185,43 @@ function OrderTracking() {
             <div className="sm-card p-4 mb-3">
               <h6 className="fw-bold mb-3">Order summary</h6>
               <table className="table table-sm table-borderless mb-0">
-                <thead><tr className="text-muted small"><th>Item</th><th>Qty</th><th className="text-end">Subtotal</th></tr></thead>
+                <thead>
+                  <tr className="text-muted small">
+                    <th>Item</th><th>Qty</th><th className="text-end">Subtotal</th>
+                  </tr>
+                </thead>
                 <tbody>
-                  {order.items.map((item, i) => (
+                  {(order.items ?? []).map((item, i) => (
                     <tr key={i}>
-                      <td style={{ fontSize: "0.875rem" }}>{item.name}</td>
+                      <td style={{ fontSize: "0.875rem" }}>{item.product_name}</td>
                       <td className="text-muted" style={{ fontSize: "0.82rem" }}>{item.quantity} kg</td>
                       <td className="text-end" style={{ fontSize: "0.875rem" }}>KES {item.subtotal}</td>
                     </tr>
                   ))}
                   <tr className="border-top">
                     <td colSpan={2} className="fw-bold" style={{ fontSize: "0.875rem" }}>Total</td>
-                    <td className="text-end fw-bold" style={{ color: "var(--sm-green)" }}>KES {order.total}</td>
+                    <td className="text-end fw-bold" style={{ color: "var(--sm-green)" }}>
+                      KES {Number(order.total_amount).toFixed(2)}
+                    </td>
                   </tr>
                 </tbody>
               </table>
               <hr />
               <div className="d-flex justify-content-between small text-muted">
                 <span>Payment</span>
-                <span className="fw-semibold text-dark">{order.payment_method} — {order.payment_status}</span>
+                <span className="fw-semibold text-dark">
+                  {order.payment?.payment_method ?? "—"} — {order.payment?.payment_status ?? "Pending"}
+                </span>
               </div>
             </div>
 
             {/* Leave a review (only after delivery) */}
-            {order.status === "Delivered" && (
+            {order.order_status === "Delivered" && (
               <div className="sm-card p-4">
-                <h6 className="fw-bold mb-3"><i className="bi bi-star me-2" style={{ color: "var(--sm-green)" }}></i>Rate this order</h6>
+                <h6 className="fw-bold mb-3">
+                  <i className="bi bi-star me-2" style={{ color: "var(--sm-green)" }}></i>
+                  Rate this order
+                </h6>
 
                 {reviewSubmitted ? (
                   <div className="alert alert-success py-2 small mb-0">
@@ -217,7 +236,11 @@ function OrderTracking() {
                           <button
                             key={star} type="button"
                             onClick={() => setReviewRating(star)}
-                            style={{ background: "none", border: "none", fontSize: "1.4rem", cursor: "pointer", color: star <= reviewRating ? "#f59e0b" : "#e0ded5" }}
+                            style={{
+                              background: "none", border: "none",
+                              fontSize: "1.4rem", cursor: "pointer",
+                              color: star <= reviewRating ? "#f59e0b" : "#e0ded5",
+                            }}
                           >
                             ★
                           </button>
@@ -234,8 +257,18 @@ function OrderTracking() {
                       />
                     </div>
                     <div className="d-flex gap-2">
-                      <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setShowReviewForm(false)}>Cancel</button>
-                      <button type="submit" className="btn btn-sm flex-grow-1" style={{ background: "var(--sm-green)", color: "#fff", border: "none" }}>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-secondary"
+                        onClick={() => setShowReviewForm(false)}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="btn btn-sm flex-grow-1"
+                        style={{ background: "var(--sm-green)", color: "#fff", border: "none" }}
+                      >
                         Submit review
                       </button>
                     </div>

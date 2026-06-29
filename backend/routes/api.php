@@ -15,6 +15,9 @@ use App\Http\Controllers\Api\PickupZoneController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\SellerProductController;
 use App\Http\Controllers\Api\SellerInventoryController;
+use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\SellerOrderController;
+use App\Http\Controllers\Api\MpesaController;
 
 // ── Auth (public — no token needed) ─────────────────────────────────
 Route::prefix('auth')->group(function () {
@@ -33,6 +36,9 @@ Route::prefix('auth')->group(function () {
 // Zones dropdown used on Register + Profile pages
 Route::get('pickup-zones', [PickupZoneController::class, 'index']);
 
+// M-Pesa callback — must be public (Safaricom hits this directly)
+Route::post('payments/mpesa/callback', [MpesaController::class, 'callback']);
+
 // Products + Categories (public browsing)
 Route::get('categories',       [ProductController::class, 'categories']);
 Route::get('products',         [ProductController::class, 'index']);
@@ -49,6 +55,20 @@ Route::middleware('auth:api')->group(function () {
 
 });
 
+// ── Buyer-only routes ────────────────────────────────────────────────
+Route::middleware(['auth:api', 'role:buyer'])->group(function () {
+
+    // Orders
+    Route::post('orders',        [OrderController::class, 'store']);
+    Route::get('orders',         [OrderController::class, 'index']);
+    Route::get('orders/{id}',    [OrderController::class, 'show']);
+
+    // Payments
+    Route::post('payments/mpesa/initiate',    [MpesaController::class, 'initiate']);
+    Route::get('payments/{orderId}/status',   [MpesaController::class, 'status']);
+
+});
+
 // ── Seller-only routes ───────────────────────────────────────────────
 Route::middleware(['auth:api', 'role:seller'])->prefix('seller')->group(function () {
 
@@ -60,6 +80,10 @@ Route::middleware(['auth:api', 'role:seller'])->prefix('seller')->group(function
     // Inventory management
     Route::get('inventory',         [SellerInventoryController::class, 'index']);
     Route::patch('inventory/{id}',  [SellerInventoryController::class, 'update']);
+
+    // Orders management
+    Route::get('orders',            [SellerOrderController::class, 'index']);
+    Route::patch('orders/{id}',     [SellerOrderController::class, 'update']);
 
 });
 

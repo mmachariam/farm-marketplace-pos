@@ -1,15 +1,6 @@
-// ===========================================
-// SELLER ORDERS PAGE
-// Shows incoming orders for this seller's products,
-// with the ability to confirm or cancel pending orders.
-//
-// Maps to: orders + order_items tables (filtered by this seller's products)
-//
-// Data flow:
-// - Fetch from GET /api/seller/orders
-// - "Confirm" → PATCH /api/seller/orders/{id} { status: "Confirmed" }
-// - "Cancel"  → PATCH /api/seller/orders/{id} { status: "Cancelled" }
-// ===========================================
+// SellerOrders — SokoMoja
+// Shows incoming orders for this seller's products.
+// Confirm or cancel pending orders via the real API.
 
 import { useState, useEffect } from "react";
 import DashboardLayout from "../../components/DashboardLayout";
@@ -26,42 +17,47 @@ function SellerOrders() {
     { label: "Profile",    icon: "bi-person-circle",  path: "/seller/profile",    active: false },
   ];
 
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  // Tracks which order is currently being updated (to show a mini loading state per row)
+  const [orders, setOrders]       = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState("");
   const [updatingId, setUpdatingId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastPage, setLastPage]   = useState(1);
 
   useEffect(() => {
-    async function fetchOrders() {
-      try {
-        setLoading(true);
-        setError("");
+    fetchOrders(currentPage);
+  }, [currentPage]);
 
-        // TODO: replace with real API call
-        // const data = await apiRequest("/seller/orders");
-        // setOrders(data);
+  async function fetchOrders(page) {
+    try {
+      setLoading(true);
+      setError("");
 
-        // TEMPORARY sample data
-        await new Promise((res) => setTimeout(res, 500));
-        setOrders([
-          { order_id: 1061, buyer_name: "John K.",            date: "2026-06-09", zone: "Kiambu Zone", item_summary: "Broccoli × 8 kg", total: 640, status: "Pending"   },
-          { order_id: 1058, buyer_name: "Mama Grace Grocers",  date: "2026-06-08", zone: "Nakuru Zone", item_summary: "Kale × 20 kg",   total: 600, status: "Confirmed" },
-          { order_id: 1042, buyer_name: "Peter Otieno",        date: "2026-06-02", zone: "Kiambu Zone", item_summary: "Broccoli × 5 kg, Tomatoes × 10 kg", total: 1200, status: "Delivered" },
-        ]);
-
-      } catch (err) {
-        setError(err.message || "Failed to load orders.");
-      } finally {
-        setLoading(false);
-      }
+      const res = await apiRequest(`/seller/orders?page=${page}`);
+      const paginated = res.data;
+      setOrders(paginated.data ?? []);
+      setLastPage(paginated.last_page ?? 1);
+    } catch (err) {
+      setError(err.message || "Failed to load orders.");
+    } finally {
+      setLoading(false);
     }
+  }
 
-    fetchOrders();
-  }, []);
+  const updateOrderStatus = async (orderId, newStatus) => {
+    setUpdatingId(orderId);
+    try {
+      const res = await apiRequest(`/seller/orders/${orderId}`, "PATCH", { status: newStatus });
+      setOrders((prev) =>
+        prev.map((o) => (o.order_id === orderId ? res.data : o))
+      );
+    } catch (err) {
+      alert(`Failed to update order: ${err.message}`);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
-  // ---- HELPER: badge class for each status ----
   const getBadgeClass = (status) => {
     switch (status) {
       case "Pending":   return "dash-badge-pending";
@@ -72,95 +68,97 @@ function SellerOrders() {
     }
   };
 
-  // ---- UPDATE ORDER STATUS ----
-  // Used by both the Confirm and Cancel buttons
-  const updateOrderStatus = async (orderId, newStatus) => {
-    setUpdatingId(orderId);
-
-    try {
-      // TODO: replace with real API call
-      // await apiRequest(`/seller/orders/${orderId}`, "PATCH", { status: newStatus });
-
-      // TEMPORARY: simulate network delay
-      await new Promise((res) => setTimeout(res, 600));
-
-      // Update the order's status in local state so the UI reflects the change immediately
-      setOrders((prevOrders) =>
-        prevOrders.map((order) =>
-          order.order_id === orderId ? { ...order, status: newStatus } : order
-        )
-      );
-
-    } catch (err) {
-      alert(`Failed to update order: ${err.message}`);
-    } finally {
-      setUpdatingId(null);
-    }
-  };
+  const summariseItems = (items = []) =>
+    items.map((i) => `${i.product_name} × ${i.quantity} kg`).join(", ") || "—";
 
   return (
     <DashboardLayout title="Incoming orders" navItems={navItems}>
 
       {loading && <div className="dash-loading">Loading orders…</div>}
-      {error && <div className="dash-error">⚠️ {error}</div>}
+      {error && <div className="dash-error">⚠ {error}</div>}
 
-      {/* Empty state */}
       {!loading && !error && orders.length === 0 && (
         <div className="dash-empty-state">
           You have no orders yet. Once buyers order your produce, they'll appear here.
         </div>
       )}
 
-      {/* ---- ORDERS LIST (cards, not a table, since each row needs action buttons) ---- */}
       {!loading && !error && orders.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {orders.map((order) => (
-            <div className="dash-table-wrap" key={order.order_id} style={{ padding: "16px 20px" }}>
+        <>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {orders.map((order) => {
+              const date = order.order_date
+                ? new Date(order.order_date).toLocaleDateString("en-KE", { dateStyle: "medium" })
+                : "—";
+              const zone = order.zone?.zone_name ?? "—";
 
-              {/* Header row: order ID + status badge */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                <span style={{ fontWeight: 600, fontSize: "14px" }}>Order #{order.order_id}</span>
-                <span className={`dash-badge ${getBadgeClass(order.status)}`}>{order.status}</span>
-              </div>
+              return (
+                <div className="dash-table-wrap" key={order.order_id} style={{ padding: "16px 20px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                    <span style={{ fontWeight: 600, fontSize: "14px" }}>Order #{order.order_id}</span>
+                    <span className={`dash-badge ${getBadgeClass(order.order_status)}`}>{order.order_status}</span>
+                  </div>
 
-              {/* Order details */}
-              <div style={{ fontSize: "12px", color: "#73726c", marginBottom: "6px" }}>
-                Buyer: {order.buyer_name} · {order.date} · {order.zone}
-              </div>
-              <div style={{ fontSize: "13px", marginBottom: "10px" }}>
-                {order.item_summary} — <strong>KES {order.total}</strong>
-              </div>
+                  <div style={{ fontSize: "12px", color: "#73726c", marginBottom: "6px" }}>
+                    Buyer: {order.buyer?.name ?? "—"} · {date} · {zone}
+                  </div>
+                  <div style={{ fontSize: "13px", marginBottom: "10px" }}>
+                    {summariseItems(order.items)} — <strong>KES {Number(order.total_amount).toFixed(2)}</strong>
+                  </div>
 
-              {/* Action buttons - only show for Pending orders */}
-              {order.status === "Pending" && (
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button
-                    onClick={() => updateOrderStatus(order.order_id, "Confirmed")}
-                    disabled={updatingId === order.order_id}
-                    style={{
-                      fontSize: "13px", padding: "6px 16px", borderRadius: "8px",
-                      border: "1px solid #1D9E75", background: "#EAF3DE", color: "#27500A",
-                      cursor: "pointer", fontWeight: 500,
-                    }}
-                  >
-                    {updatingId === order.order_id ? "Updating…" : "Confirm"}
-                  </button>
-                  <button
-                    onClick={() => updateOrderStatus(order.order_id, "Cancelled")}
-                    disabled={updatingId === order.order_id}
-                    style={{
-                      fontSize: "13px", padding: "6px 16px", borderRadius: "8px",
-                      border: "1px solid #e0ded5", background: "#fff", color: "#73726c",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Cancel
-                  </button>
+                  {order.order_status === "Pending" && (
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button
+                        onClick={() => updateOrderStatus(order.order_id, "Confirmed")}
+                        disabled={updatingId === order.order_id}
+                        style={{
+                          fontSize: "13px", padding: "6px 16px", borderRadius: "8px",
+                          border: "1px solid #1D9E75", background: "#EAF3DE", color: "#27500A",
+                          cursor: "pointer", fontWeight: 500,
+                        }}
+                      >
+                        {updatingId === order.order_id ? "Updating…" : "Confirm"}
+                      </button>
+                      <button
+                        onClick={() => updateOrderStatus(order.order_id, "Cancelled")}
+                        disabled={updatingId === order.order_id}
+                        style={{
+                          fontSize: "13px", padding: "6px 16px", borderRadius: "8px",
+                          border: "1px solid #e0ded5", background: "#fff", color: "#73726c",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
+              );
+            })}
+          </div>
+
+          {lastPage > 1 && (
+            <div className="d-flex justify-content-center gap-2 mt-4">
+              <button
+                className="btn btn-sm btn-outline-secondary"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => p - 1)}
+              >
+                <i className="bi bi-chevron-left"></i>
+              </button>
+              <span className="btn btn-sm btn-light disabled" style={{ minWidth: 80 }}>
+                {currentPage} / {lastPage}
+              </span>
+              <button
+                className="btn btn-sm btn-outline-secondary"
+                disabled={currentPage === lastPage}
+                onClick={() => setCurrentPage((p) => p + 1)}
+              >
+                <i className="bi bi-chevron-right"></i>
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
     </DashboardLayout>

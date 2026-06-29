@@ -19,7 +19,6 @@ export default function AdminZones() {
     { label: "Overview",  icon: "bi-grid-1x2",          path: "/admin/overview",  active: false },
     { label: "Users",     icon: "bi-people",            path: "/admin/users",     active: false },
     { label: "Zones",     icon: "bi-geo-alt",           path: "/admin/zones",     active: true  },
-    { label: "Analytics", icon: "bi-bar-chart-line",    path: "/admin/analytics", active: false },
     { label: "Reports",   icon: "bi-file-earmark-text", path: "/admin/reports",   active: false },
   ];
 

@@ -13,7 +13,6 @@ export default function AdminUsers() {
     { label: "Overview",  icon: "bi-grid-1x2",          path: "/admin/overview",  active: false },
     { label: "Users",     icon: "bi-people",            path: "/admin/users",     active: true  },
     { label: "Zones",     icon: "bi-geo-alt",           path: "/admin/zones",     active: false },
-    { label: "Analytics", icon: "bi-bar-chart-line",    path: "/admin/analytics", active: false },
     { label: "Reports",   icon: "bi-file-earmark-text", path: "/admin/reports",   active: false },
   ];
 
@@ -24,7 +23,7 @@ export default function AdminUsers() {
   const [roleFilter,  setRoleFilter]  = useState("");
   const [updatingId,  setUpdatingId]  = useState(null);
   const [successMsg,  setSuccessMsg]  = useState("");
-  const [pagination,  setPagination]  = useState({ total: 0, currentPage: 1, lastPage: 1 });
+  const [pagination,  setPagination]  = useState({ total: 0, current_page: 1, last_page: 1 });
 
   // ── Fetch users whenever search/filter/page changes ──────────────
   const fetchUsers = useCallback(async (page = 1) => {
@@ -249,19 +248,19 @@ export default function AdminUsers() {
           </div>
 
           {/* Pagination */}
-          {pagination.lastPage > 1 && (
+          {pagination.last_page > 1 && (
             <div className="d-flex justify-content-center gap-2 mt-4">
               <button className="btn btn-sm btn-outline-secondary"
-                disabled={pagination.currentPage === 1}
-                onClick={() => fetchUsers(pagination.currentPage - 1)}>
+                disabled={pagination.current_page === 1}
+                onClick={() => fetchUsers(pagination.current_page - 1)}>
                 ← Prev
               </button>
               <span className="btn btn-sm btn-success disabled">
-                {pagination.currentPage} / {pagination.lastPage}
+                {pagination.current_page} / {pagination.last_page}
               </span>
               <button className="btn btn-sm btn-outline-secondary"
-                disabled={pagination.currentPage === pagination.lastPage}
-                onClick={() => fetchUsers(pagination.currentPage + 1)}>
+                disabled={pagination.current_page === pagination.last_page}
+                onClick={() => fetchUsers(pagination.current_page + 1)}>
                 Next →
               </button>
             </div>

@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import DashboardLayout from "../../components/DashboardLayout";
+import PaginationBar from "../../components/PaginationBar";
 import { apiRequest } from "../../utils/api";
 
 export default function AdminUsers() {
@@ -24,6 +25,8 @@ export default function AdminUsers() {
   const [updatingId,  setUpdatingId]  = useState(null);
   const [successMsg,  setSuccessMsg]  = useState("");
   const [pagination,  setPagination]  = useState({ total: 0, current_page: 1, last_page: 1 });
+  // AdminUserController meta does not include per_page; 20 matches paginate(20) in the controller
+  const perPage = 20;
 
   // ── Fetch users whenever search/filter/page changes ──────────────
   const fetchUsers = useCallback(async (page = 1) => {
@@ -141,7 +144,20 @@ export default function AdminUsers() {
       {error && <div className="alert alert-danger">{error}</div>}
 
       {!loading && !error && users.length === 0 && (
-        <div className="text-center text-muted py-5">No users match your search.</div>
+        <div className="text-center py-5">
+          <div
+            className="rounded-circle bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3"
+            style={{ width: 72, height: 72 }}
+          >
+            <i className="bi bi-people text-success" style={{ fontSize: "1.8rem" }}></i>
+          </div>
+          <h6 className="fw-semibold mb-1">No users found</h6>
+          <p className="text-muted small mb-0">
+            {searchTerm || roleFilter
+              ? "No users match your search. Try adjusting the filters."
+              : "No registered users yet."}
+          </p>
+        </div>
       )}
 
       {!loading && !error && users.length > 0 && (
@@ -248,22 +264,15 @@ export default function AdminUsers() {
           </div>
 
           {/* Pagination */}
-          {pagination.last_page > 1 && (
-            <div className="d-flex justify-content-center gap-2 mt-4">
-              <button className="btn btn-sm btn-outline-secondary"
-                disabled={pagination.current_page === 1}
-                onClick={() => fetchUsers(pagination.current_page - 1)}>
-                ← Prev
-              </button>
-              <span className="btn btn-sm btn-success disabled">
-                {pagination.current_page} / {pagination.last_page}
-              </span>
-              <button className="btn btn-sm btn-outline-secondary"
-                disabled={pagination.current_page === pagination.last_page}
-                onClick={() => fetchUsers(pagination.current_page + 1)}>
-                Next →
-              </button>
-            </div>
+          {!error && pagination.total > 0 && (
+            <PaginationBar
+              page={pagination.current_page}
+              lastPage={pagination.last_page}
+              total={pagination.total}
+              perPage={perPage}
+              loading={loading}
+              onChange={(p) => fetchUsers(p)}
+            />
           )}
         </>
       )}

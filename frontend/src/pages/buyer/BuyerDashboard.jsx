@@ -9,6 +9,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
+import PaginationBar from "../../components/PaginationBar";
 import { useCart } from "../../context/CartContext";
 import { apiRequest } from "../../utils/api";
 
@@ -33,12 +34,13 @@ export default function BuyerDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
 
   // ── Data state ──────────────────────────────────────────────────────
-  const [products,       setProducts]       = useState([]);
-  const [categories,     setCategories]     = useState([]);
-  const [loading,        setLoading]        = useState(true);
-  const [error,          setError]          = useState("");
-  const [totalProducts,  setTotalProducts]  = useState(0);
-  const [lastPage,       setLastPage]       = useState(1);
+  const [products,      setProducts]      = useState([]);
+  const [categories,    setCategories]    = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState("");
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [lastPage,      setLastPage]      = useState(1);
+  const [perPage,       setPerPage]       = useState(12);
 
   // Load categories once on mount
   useEffect(() => {
@@ -69,8 +71,9 @@ export default function BuyerDashboard() {
         const res = await apiRequest(`/products?${params.toString()}`);
         if (!cancelled) {
           setProducts(res.data ?? []);
-          setTotalProducts(res.meta?.total ?? 0);
+          setTotalProducts(res.meta?.total    ?? 0);
           setLastPage(res.meta?.last_page ?? 1);
+          setPerPage(res.meta?.per_page   ?? 12);
         }
       } catch (err) {
         if (!cancelled) setError(err.message || "Failed to load products.");
@@ -95,6 +98,18 @@ export default function BuyerDashboard() {
   };
 
   const activeFilterCount = [search, categoryId, minPrice, maxPrice].filter(Boolean).length;
+
+  // ── Category emoji fallback ─────────────────────────────────────────
+  const categoryEmoji = (name = "") => {
+    const n = name.toLowerCase();
+    if (n.includes("vegetable"))  return "🥬";
+    if (n.includes("fruit"))      return "🍎";
+    if (n.includes("grain") || n.includes("cereal")) return "🌽";
+    if (n.includes("dairy") || n.includes("egg"))    return "🥛";
+    if (n.includes("root") || n.includes("tuber"))   return "🥔";
+    if (n.includes("legume"))     return "🫘";
+    return "🌿";
+  };
 
   // ── Cart helpers ────────────────────────────────────────────────────
   const cartQty = (id) => cart.find((i) => i.product_id === id)?.quantity || 0;
@@ -164,7 +179,19 @@ export default function BuyerDashboard() {
           {/* ── Controls bar ── */}
           <div className="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
             <span className="text-muted small">
-              Showing <strong>{totalProducts}</strong> products
+              {loading ? (
+                "Loading…"
+              ) : totalProducts === 0 ? (
+                "No products found"
+              ) : (
+                <>
+                  Showing{" "}
+                  <strong>
+                    {(currentPage - 1) * perPage + 1}–{Math.min(currentPage * perPage, totalProducts)}
+                  </strong>{" "}
+                  of <strong>{totalProducts}</strong> products
+                </>
+              )}
             </span>
             <div className="d-flex gap-2 align-items-center">
               <select
@@ -294,7 +321,7 @@ export default function BuyerDashboard() {
                             className="w-100 h-100 d-flex align-items-center justify-content-center bg-light"
                             style={{ borderRadius: "12px 12px 0 0", fontSize: "3rem", display: p.image_url ? "none" : "flex" }}
                           >
-                            🥬
+                            {categoryEmoji(p.category?.name)}
                           </div>
 
                           {/* Out-of-stock badge */}
@@ -404,26 +431,15 @@ export default function BuyerDashboard() {
               </div>
 
               {/* Pagination */}
-              {lastPage > 1 && (
-                <div className="d-flex justify-content-center gap-2 mt-4">
-                  <button
-                    className="btn btn-sm btn-outline-secondary"
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage((p) => p - 1)}
-                  >
-                    <i className="bi bi-chevron-left"></i>
-                  </button>
-                  <span className="btn btn-sm btn-light disabled" style={{ minWidth: 80 }}>
-                    {currentPage} / {lastPage}
-                  </span>
-                  <button
-                    className="btn btn-sm btn-outline-secondary"
-                    disabled={currentPage === lastPage}
-                    onClick={() => setCurrentPage((p) => p + 1)}
-                  >
-                    <i className="bi bi-chevron-right"></i>
-                  </button>
-                </div>
+              {totalProducts > 0 && (
+                <PaginationBar
+                  page={currentPage}
+                  lastPage={lastPage}
+                  total={totalProducts}
+                  perPage={perPage}
+                  loading={loading}
+                  onChange={(p) => setCurrentPage(p)}
+                />
               )}
             </>
           )}

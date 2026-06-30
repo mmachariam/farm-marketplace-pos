@@ -8,7 +8,7 @@
 //   const data = await apiRequest("/auth/login", "POST", { email, password });
 // ===========================================
 
-import { getToken } from "./auth";
+import { getToken, logout } from "./auth";
 
 // Backend runs at localhost:8000 (Laravel dev server)
 // frontend runs at localhost:5173 (Vite dev server)
@@ -48,6 +48,12 @@ export async function apiRequest(endpoint, method = "GET", body = null) {
     const error   = new Error(message);
     error.errors  = data?.errors || {}; // field-level validation errors
     error.status  = response.status;
+
+    // Auto-logout on token expiry
+    if (response.status === 401) {
+      logout();
+    }
+
     throw error;
   }
 

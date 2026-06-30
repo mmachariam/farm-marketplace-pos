@@ -89,8 +89,13 @@ function OrderTracking() {
       });
       setItemReview(productId, { submitted: true, submitting: false, showForm: false });
     } catch (err) {
-      alert("Failed to submit review: " + err.message);
-      setItemReview(productId, { submitting: false });
+      // 422 means already reviewed — mark as submitted instead of showing alert
+      if (err.status === 422 && err.message?.toLowerCase().includes("already")) {
+        setItemReview(productId, { submitted: true, submitting: false, showForm: false });
+      } else {
+        setItemReview(productId, { submitting: false, showForm: true });
+        alert("Failed to submit review: " + err.message);
+      }
     }
   };
 

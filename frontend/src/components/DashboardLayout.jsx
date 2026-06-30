@@ -17,7 +17,7 @@ export default function DashboardLayout({ title, navItems, children }) {
   }[user.role] || user.role;
 
   const initial     = user.name ? user.name.charAt(0).toUpperCase() : "?";
-  const avatarUrl   = user.avatarUrl || null; // set by profile pages via setUser()
+  const avatarUrl   = user.avatar_url || user.avatarUrl || null;
 
   return (
     <div className="d-flex" style={{ minHeight: "100vh" }}>

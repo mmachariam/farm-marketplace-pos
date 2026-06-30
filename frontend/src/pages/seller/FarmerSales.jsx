@@ -1,10 +1,11 @@
 // FarmerSales — SokoMoja
 // Farmer records offline (farm-gate) sales and views sales history/report.
-// GET  /api/seller/sales
+// GET  /api/seller/sales?page=N
 // POST /api/seller/sales
 
 import { useState, useEffect } from "react";
 import DashboardLayout from "../../components/DashboardLayout";
+import PaginationBar from "../../components/PaginationBar";
 import { apiRequest } from "../../utils/api";
 
 function FarmerSales() {
@@ -20,32 +21,41 @@ function FarmerSales() {
 
   const [view, setView] = useState("history");
 
-  // History state
-  const [sales, setSales]     = useState([]);
-  const [summary, setSummary] = useState({ todayRevenue: 0, totalRevenue: 0, todaySales: 0, totalSales: 0 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState("");
+  // History + pagination state
+  const [sales,        setSales]        = useState([]);
+  const [summary,      setSummary]      = useState({ todayRevenue: 0, totalRevenue: 0, todaySales: 0, totalSales: 0 });
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState("");
+  const [currentPage,  setCurrentPage]  = useState(1);
+  const [lastPage,     setLastPage]     = useState(1);
+  const [total,        setTotal]        = useState(0);
+  const [perPage,      setPerPage]      = useState(15);
 
   // New sale form state
-  const [saleItems, setSaleItems] = useState([
-    { product_name: "", quantity: "", unit_price: "" },
-  ]);
-  const [paymentMethod, setPaymentMethod] = useState("Cash");
-  const [buyerName, setBuyerName]         = useState("");
-  const [saving, setSaving]               = useState(false);
-  const [successMsg, setSuccessMsg]       = useState("");
-  const [formErrors, setFormErrors]       = useState({});
+  const [saleItems,      setSaleItems]      = useState([{ product_name: "", quantity: "", unit_price: "" }]);
+  const [paymentMethod,  setPaymentMethod]  = useState("Cash");
+  const [buyerName,      setBuyerName]      = useState("");
+  const [saving,         setSaving]         = useState(false);
+  const [successMsg,     setSuccessMsg]     = useState("");
+  const [formErrors,     setFormErrors]     = useState({});
 
   useEffect(() => {
-    fetchSales();
-  }, []);
+    fetchSales(currentPage);
+  }, [currentPage]);
 
-  async function fetchSales() {
+  async function fetchSales(page = 1) {
     try {
       setLoading(true);
       setError("");
-      const res = await apiRequest("/seller/sales");
-      setSales(res.data?.data ?? []);
+      const res = await apiRequest(`/seller/sales?page=${page}`);
+
+      // res.data = Laravel paginator; res.data.data = items array; res.summary = stat totals
+      const paginated = res.data;
+      setSales(paginated.data    ?? []);
+      setLastPage(paginated.last_page ?? 1);
+      setTotal(paginated.total    ?? 0);
+      setPerPage(paginated.per_page ?? 15);
+
       setSummary({
         todayRevenue: res.summary?.today_revenue ?? 0,
         totalRevenue: res.summary?.total_revenue ?? 0,
@@ -59,7 +69,7 @@ function FarmerSales() {
     }
   }
 
-  // Sale item handlers
+  // ── Sale item handlers ───────────────────────────────────────────────
   const handleItemChange = (index, field, value) => {
     setSaleItems((prev) =>
       prev.map((item, i) => i === index ? { ...item, [field]: value } : item)
@@ -83,8 +93,8 @@ function FarmerSales() {
   const validateSale = () => {
     const errs = {};
     saleItems.forEach((item, i) => {
-      if (!item.product_name.trim()) errs[`name_${i}`]  = "Required";
-      if (!item.quantity || item.quantity <= 0) errs[`qty_${i}`] = "Required";
+      if (!item.product_name.trim())              errs[`name_${i}`]  = "Required";
+      if (!item.quantity   || item.quantity  <= 0) errs[`qty_${i}`]   = "Required";
       if (!item.unit_price || item.unit_price <= 0) errs[`price_${i}`] = "Required";
     });
     setFormErrors(errs);
@@ -97,7 +107,7 @@ function FarmerSales() {
     if (!validateSale()) return;
     setSaving(true);
     try {
-      const res = await apiRequest("/seller/sales", "POST", {
+      await apiRequest("/seller/sales", "POST", {
         buyer_name:     buyerName || null,
         payment_method: paymentMethod,
         items: saleItems.map((i) => ({
@@ -107,17 +117,17 @@ function FarmerSales() {
         })),
       });
 
-      setSales((prev) => [res.data, ...prev]);
-      setSummary((prev) => ({
-        todayRevenue: prev.todayRevenue + (res.data?.total_amount ?? 0),
-        totalRevenue: prev.totalRevenue + (res.data?.total_amount ?? 0),
-        todaySales:   prev.todaySales + 1,
-        totalSales:   prev.totalSales + 1,
-      }));
       setSuccessMsg(`Sale recorded — KES ${saleTotal.toFixed(2)} via ${paymentMethod}`);
       setSaleItems([{ product_name: "", quantity: "", unit_price: "" }]);
       setBuyerName("");
       setView("history");
+
+      // Refresh page 1 of the history so the new record is visible
+      if (currentPage === 1) {
+        fetchSales(1);
+      } else {
+        setCurrentPage(1); // triggers the useEffect → fetchSales(1)
+      }
     } catch (err) {
       alert("Failed to record sale: " + err.message);
     } finally {
@@ -181,44 +191,76 @@ function FarmerSales() {
             </div>
           </div>
 
-          {loading && <div className="text-center text-muted py-5">Loading sales…</div>}
-          {error   && <div className="alert alert-danger">{error}</div>}
+          {/* Loading */}
+          {loading && (
+            <div className="text-center py-5">
+              <div className="spinner-border text-success" role="status"></div>
+              <div className="text-muted small mt-2">Loading sales…</div>
+            </div>
+          )}
 
-          {!loading && !error && (
-            sales.length === 0 ? (
-              <div className="text-center text-muted py-5">No sales recorded yet.</div>
-            ) : (
-              <div className="sm-card">
-                <table className="table table-hover mb-0" style={{ fontSize: "0.875rem" }}>
-                  <thead className="table-light">
-                    <tr>
-                      <th>Sale ID</th>
-                      <th>Date</th>
-                      <th>Buyer</th>
-                      <th>Items</th>
-                      <th>Total</th>
-                      <th>Method</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sales.map((sale) => (
-                      <tr key={sale.sale_id}>
-                        <td className="text-muted">#{sale.sale_id}</td>
-                        <td>{sale.sale_date ? new Date(sale.sale_date).toLocaleDateString("en-KE") : "—"}</td>
-                        <td>{sale.buyer_name || "Walk-in buyer"}</td>
-                        <td className="text-muted" style={{ fontSize: "0.8rem" }}>
-                          {(sale.items ?? []).map((i) => `${i.product_name} × ${i.quantity} ${i.unit}`).join(", ")}
-                        </td>
-                        <td className="fw-semibold" style={{ color: "var(--sm-green)" }}>
-                          KES {Number(sale.total_amount).toLocaleString()}
-                        </td>
-                        <td>{sale.payment_method}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {error && <div className="alert alert-danger">{error}</div>}
+
+          {/* Empty state */}
+          {!loading && !error && sales.length === 0 && (
+            <div className="text-center py-5">
+              <div
+                className="rounded-circle bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3"
+                style={{ width: 72, height: 72 }}
+              >
+                <i className="bi bi-receipt text-success" style={{ fontSize: "1.8rem" }}></i>
               </div>
-            )
+              <h6 className="fw-semibold mb-1">No sales recorded yet</h6>
+              <p className="text-muted small mb-0">
+                Use the "Record offline sale" tab to log your farm-gate sales.
+              </p>
+            </div>
+          )}
+
+          {/* Sales table */}
+          {!loading && !error && sales.length > 0 && (
+            <div className="sm-card">
+              <table className="table table-hover mb-0" style={{ fontSize: "0.875rem" }}>
+                <thead className="table-light">
+                  <tr>
+                    <th>Sale ID</th>
+                    <th>Date</th>
+                    <th>Buyer</th>
+                    <th>Items</th>
+                    <th>Total</th>
+                    <th>Method</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sales.map((sale) => (
+                    <tr key={sale.sale_id}>
+                      <td className="text-muted">#{sale.sale_id}</td>
+                      <td>{sale.sale_date ? new Date(sale.sale_date).toLocaleDateString("en-KE") : "—"}</td>
+                      <td>{sale.buyer_name || "Walk-in buyer"}</td>
+                      <td className="text-muted" style={{ fontSize: "0.8rem" }}>
+                        {(sale.items ?? []).map((i) => `${i.product_name} × ${i.quantity} ${i.unit}`).join(", ")}
+                      </td>
+                      <td className="fw-semibold" style={{ color: "var(--sm-green)" }}>
+                        KES {Number(sale.total_amount).toLocaleString()}
+                      </td>
+                      <td>{sale.payment_method}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {!error && total > 0 && (
+            <PaginationBar
+              page={currentPage}
+              lastPage={lastPage}
+              total={total}
+              perPage={perPage}
+              loading={loading}
+              onChange={(p) => setCurrentPage(p)}
+            />
           )}
         </>
       )}

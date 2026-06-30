@@ -1,10 +1,11 @@
 // AdminReports — SokoMoja
-// Admin generates and views reports.
-// GET  /api/admin/reports
+// Admin generates and views paginated reports.
+// GET  /api/admin/reports?page=N
 // POST /api/admin/reports
 
 import { useState, useEffect } from "react";
 import DashboardLayout from "../../components/DashboardLayout";
+import PaginationBar from "../../components/PaginationBar";
 import { apiRequest } from "../../utils/api";
 
 function AdminReports() {
@@ -15,26 +16,36 @@ function AdminReports() {
     { label: "Reports",   icon: "bi-file-earmark-text", path: "/admin/reports",   active: true  },
   ];
 
-  const [reports, setReports] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState("");
+  const [reports,     setReports]     = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastPage,    setLastPage]    = useState(1);
+  const [total,       setTotal]       = useState(0);
+  const [perPage,     setPerPage]     = useState(15);
 
-  const [reportType, setReportType] = useState("Sales summary");
-  const [dateFrom, setDateFrom]     = useState("");
-  const [dateTo, setDateTo]         = useState("");
-  const [generating, setGenerating] = useState(false);
-  const [successMsg, setSuccessMsg] = useState("");
+  const [reportType,  setReportType]  = useState("Sales summary");
+  const [dateFrom,    setDateFrom]    = useState("");
+  const [dateTo,      setDateTo]      = useState("");
+  const [generating,  setGenerating]  = useState(false);
+  const [successMsg,  setSuccessMsg]  = useState("");
 
   useEffect(() => {
-    fetchReports();
-  }, []);
+    fetchReports(currentPage);
+  }, [currentPage]);
 
-  async function fetchReports() {
+  async function fetchReports(page = 1) {
     try {
       setLoading(true);
       setError("");
-      const res = await apiRequest("/admin/reports");
-      setReports(res.data?.data ?? []);
+      const res = await apiRequest(`/admin/reports?page=${page}`);
+
+      // res.data = Laravel paginator (through()); res.data.data = items array
+      const paginated = res.data;
+      setReports(paginated.data    ?? []);
+      setLastPage(paginated.last_page ?? 1);
+      setTotal(paginated.total    ?? 0);
+      setPerPage(paginated.per_page ?? 15);
     } catch (err) {
       setError(err.message || "Failed to load reports.");
     } finally {
@@ -50,8 +61,15 @@ function AdminReports() {
         report_type: reportType,
         parameters:  { date_from: dateFrom || null, date_to: dateTo || null },
       });
-      setReports((prev) => [res.data, ...prev]);
-      setSuccessMsg("Report generated successfully.");
+
+      // Refresh page 1 so the new report appears at the top
+      if (currentPage === 1) {
+        fetchReports(1);
+      } else {
+        setCurrentPage(1);
+      }
+
+      setSuccessMsg(`Report "${res.data?.report_type}" generated successfully.`);
       setTimeout(() => setSuccessMsg(""), 4000);
     } catch (err) {
       alert(`Failed to generate report: ${err.message}`);
@@ -72,7 +90,7 @@ function AdminReports() {
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px", alignItems: "end" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "14px", alignItems: "end" }}>
 
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label htmlFor="reportType">Report type</label>
@@ -102,52 +120,85 @@ function AdminReports() {
           onClick={handleGenerate}
           disabled={generating}
         >
-          {generating ? "Generating…" : "📄 Generate report"}
+          {generating ? (
+            <><span className="spinner-border spinner-border-sm me-2"></span>Generating…</>
+          ) : (
+            "📄 Generate report"
+          )}
         </button>
       </div>
 
       {/* Report history */}
-      {loading && <div className="dash-loading">Loading reports…</div>}
-      {error   && <div className="dash-error">⚠️ {error}</div>}
+      {loading && (
+        <div className="text-center py-5">
+          <div className="spinner-border text-success" role="status"></div>
+          <div className="text-muted small mt-2">Loading reports…</div>
+        </div>
+      )}
 
-      {!loading && !error && (
-        reports.length === 0 ? (
-          <div className="dash-empty-state">No reports generated yet.</div>
-        ) : (
-          <div className="dash-table-wrap">
-            <table className="dash-table">
-              <thead>
-                <tr>
-                  <th>Report</th>
-                  <th>Generated</th>
-                  <th>By</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {reports.map((report) => (
-                  <tr key={report.report_id}>
-                    <td>{report.report_type}</td>
-                    <td>
-                      {report.generated_date
-                        ? new Date(report.generated_date).toLocaleDateString("en-KE")
-                        : "—"}
-                    </td>
-                    <td>{report.generated_by}</td>
-                    <td>
-                      <button
-                        style={{ border: "none", background: "none", color: "#1D9E75", cursor: "pointer", fontSize: "13px" }}
-                        onClick={() => alert("Download coming soon")}
-                      >
-                        ⬇ Download
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {error && <div className="dash-error">⚠️ {error}</div>}
+
+      {/* Empty state */}
+      {!loading && !error && reports.length === 0 && (
+        <div className="text-center py-5">
+          <div
+            className="rounded-circle bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3"
+            style={{ width: 72, height: 72 }}
+          >
+            <i className="bi bi-file-earmark-text text-success" style={{ fontSize: "1.8rem" }}></i>
           </div>
-        )
+          <h6 className="fw-semibold mb-1">No reports yet</h6>
+          <p className="text-muted small mb-0">Generate your first report using the form above.</p>
+        </div>
+      )}
+
+      {/* Reports table */}
+      {!loading && !error && reports.length > 0 && (
+        <div className="dash-table-wrap">
+          <table className="dash-table">
+            <thead>
+              <tr>
+                <th>Report</th>
+                <th>Generated</th>
+                <th>By</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {reports.map((report) => (
+                <tr key={report.report_id}>
+                  <td>{report.report_type}</td>
+                  <td>
+                    {report.generated_date
+                      ? new Date(report.generated_date).toLocaleDateString("en-KE")
+                      : "—"}
+                  </td>
+                  <td>{report.generated_by}</td>
+                  <td>
+                    <button
+                      style={{ border: "none", background: "none", color: "#1D9E75", cursor: "pointer", fontSize: "13px" }}
+                      onClick={() => alert("Download coming soon")}
+                    >
+                      ⬇ Download
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {!error && total > 0 && (
+        <PaginationBar
+          page={currentPage}
+          lastPage={lastPage}
+          total={total}
+          perPage={perPage}
+          loading={loading}
+          onChange={(p) => setCurrentPage(p)}
+        />
       )}
 
     </DashboardLayout>

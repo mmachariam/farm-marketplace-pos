@@ -1,11 +1,23 @@
 // PublicMarketplace — SokoMoja
 // Wired to GET /api/products and GET /api/categories (no auth required)
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import PaginationBar from "../components/PaginationBar";
 import { apiRequest } from "../utils/api";
+
+function categoryEmoji(name = "") {
+  const n = name.toLowerCase();
+  if (n.includes("vegetable"))  return "🥬";
+  if (n.includes("fruit"))      return "🍎";
+  if (n.includes("grain") || n.includes("cereal")) return "🌽";
+  if (n.includes("dairy") || n.includes("egg"))    return "🥛";
+  if (n.includes("root") || n.includes("tuber"))   return "🥔";
+  if (n.includes("legume"))     return "🫘";
+  return "🌿";
+}
 
 function Stars({ rating }) {
   if (!rating) return null;
@@ -31,9 +43,9 @@ export default function PublicMarketplace() {
 
   const [products,   setProducts]   = useState([]);
   const [categories, setCategories] = useState([]);
-  const [meta,       setMeta]       = useState({ total: 0, current_page: 1, last_page: 1 });
+  const [meta,       setMeta]       = useState({ total: 0, current_page: 1, last_page: 1, per_page: 12 });
+  const [page,       setPage]       = useState(1);
   const [loading,    setLoading]    = useState(true);
-  const [loadingMore,setLoadingMore]= useState(false);
   const [showToast,  setShowToast]  = useState(false);
 
   // Load categories once on mount
@@ -43,36 +55,46 @@ export default function PublicMarketplace() {
       .catch(() => {});
   }, []);
 
-  // Fetch products whenever filters/sort change (reset to page 1)
-  const fetchProducts = useCallback(async (page = 1, append = false) => {
-    const params = new URLSearchParams();
-    if (search)     params.set("search",      search);
-    if (categoryId) params.set("category_id", categoryId);
-    if (minPrice)   params.set("min_price",   minPrice);
-    if (maxPrice)   params.set("max_price",   maxPrice);
-    if (sortBy !== "newest") params.set("sort", sortBy);
-    params.set("per_page", "12");
-    params.set("page",     String(page));
-
-    try {
-      if (page === 1) setLoading(true); else setLoadingMore(true);
-      const res = await apiRequest(`/products?${params.toString()}`);
-      setProducts((prev) => append ? [...prev, ...(res.data || [])] : (res.data || []));
-      setMeta(res.meta || { total: 0, current_page: 1, last_page: 1 });
-    } catch {
-      // silently ignore — products will remain as is
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  }, [search, categoryId, minPrice, maxPrice, sortBy]);
-
+  // Fetch products whenever filters, sort, or page changes.
+  // Search changes debounce 300 ms; all other changes fire immediately.
   useEffect(() => {
-    fetchProducts(1, false);
-  }, [fetchProducts]);
+    let cancelled = false;
+
+    async function load() {
+      const params = new URLSearchParams({ per_page: "12", page: String(page) });
+      if (search)     params.set("search",      search);
+      if (categoryId) params.set("category_id", categoryId);
+      if (minPrice)   params.set("min_price",   minPrice);
+      if (maxPrice)   params.set("max_price",   maxPrice);
+      if (sortBy !== "newest") params.set("sort", sortBy);
+
+      try {
+        setLoading(true);
+        const res = await apiRequest(`/products?${params.toString()}`);
+        if (!cancelled) {
+          setProducts(res.data || []);
+          setMeta(res.meta || { total: 0, current_page: 1, last_page: 1, per_page: 12 });
+        }
+      } catch {
+        // silently retain previous results
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    const timer = setTimeout(load, search ? 300 : 0);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [search, categoryId, minPrice, maxPrice, sortBy, page]);
+
+  // Reset to page 1 when any filter or sort changes
+  const setFilter = (setter) => (value) => {
+    setter(value);
+    setPage(1);
+  };
 
   const clearFilters = () => {
     setSearch(""); setCategoryId(""); setMinPrice(""); setMaxPrice(""); setSortBy("newest");
+    setPage(1);
   };
 
   const handleAddToCart = () => {
@@ -143,10 +165,10 @@ export default function PublicMarketplace() {
                     className="form-control border-0 bg-light py-3"
                     placeholder="Search tomatoes, spinach, eggs…"
                     value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+                    onChange={(e) => setFilter(setSearch)(e.target.value)}
                   />
                   {search && (
-                    <button className="btn btn-light border-0" onClick={() => setSearch("")}>
+                    <button className="btn btn-light border-0" onClick={() => setFilter(setSearch)("")}>
                       <i className="bi bi-x-lg"></i>
                     </button>
                   )}
@@ -170,7 +192,7 @@ export default function PublicMarketplace() {
               className="form-select form-select-sm border-0 bg-white shadow-sm"
               style={{ width: "auto" }}
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+              onChange={(e) => setFilter(setSortBy)(e.target.value)}
             >
               <option value="newest">Newest first</option>
               <option value="price_asc">Price: Low → High</option>
@@ -196,7 +218,7 @@ export default function PublicMarketplace() {
               <div className="row g-3">
                 <div className="col-md-4">
                   <label className="form-label small fw-semibold">Category</label>
-                  <select className="form-select" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+                  <select className="form-select" value={categoryId} onChange={(e) => setFilter(setCategoryId)(e.target.value)}>
                     <option value="">All categories</option>
                     {categories.map((c) => (
                       <option key={c.category_id} value={c.category_id}>{c.name}</option>
@@ -206,12 +228,12 @@ export default function PublicMarketplace() {
                 <div className="col-md-3">
                   <label className="form-label small fw-semibold">Min price (KES)</label>
                   <input type="number" className="form-control" placeholder="Min"
-                    value={minPrice} onChange={(e) => setMinPrice(e.target.value)} />
+                    value={minPrice} onChange={(e) => setFilter(setMinPrice)(e.target.value)} />
                 </div>
                 <div className="col-md-3">
                   <label className="form-label small fw-semibold">Max price (KES)</label>
                   <input type="number" className="form-control" placeholder="Max"
-                    value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} />
+                    value={maxPrice} onChange={(e) => setFilter(setMaxPrice)(e.target.value)} />
                 </div>
                 <div className="col-md-2 d-flex align-items-end">
                   <button className="btn btn-outline-danger btn-sm w-100" onClick={clearFilters}>
@@ -227,7 +249,7 @@ export default function PublicMarketplace() {
         <div className="d-flex flex-wrap gap-2 mb-4">
           <button
             className={`btn btn-sm px-3 ${!categoryId ? "btn-success" : "btn-outline-secondary bg-white"}`}
-            onClick={() => setCategoryId("")}
+            onClick={() => setFilter(setCategoryId)("")}
           >
             All products
           </button>
@@ -235,7 +257,7 @@ export default function PublicMarketplace() {
             <button
               key={c.category_id}
               className={`btn btn-sm px-3 ${String(categoryId) === String(c.category_id) ? "btn-success" : "btn-outline-secondary bg-white"}`}
-              onClick={() => setCategoryId(String(c.category_id))}
+              onClick={() => setFilter(setCategoryId)(String(c.category_id))}
             >
               {c.name}
             </button>
@@ -278,14 +300,15 @@ export default function PublicMarketplace() {
                             alt={p.name}
                             className="w-100 h-100 object-fit-cover"
                             style={{ borderRadius: "12px 12px 0 0" }}
-                            onError={(e) => { e.target.style.display = "none"; }}
+                            onError={(e) => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }}
                           />
-                        ) : (
-                          <div className="w-100 h-100 d-flex align-items-center justify-content-center"
-                            style={{ borderRadius: "12px 12px 0 0" }}>
-                            <i className="bi bi-flower2 text-success" style={{ fontSize: "3rem", opacity: 0.3 }}></i>
-                          </div>
-                        )}
+                        ) : null}
+                        <div
+                          className="w-100 h-100 d-flex align-items-center justify-content-center"
+                          style={{ borderRadius: "12px 12px 0 0", fontSize: "3rem", display: p.image_url ? "none" : "flex" }}
+                        >
+                          {categoryEmoji(p.category?.name)}
+                        </div>
                         <div className="position-absolute top-0 start-0 p-2 d-flex flex-column gap-1">
                           {outOfStock && (
                             <span className="badge bg-secondary" style={{ fontSize: "0.68rem" }}>Out of stock</span>
@@ -352,21 +375,16 @@ export default function PublicMarketplace() {
               })}
             </div>
 
-            {/* Load more */}
-            {meta.current_page < meta.last_page && (
-              <div className="text-center mt-4">
-                <button
-                  className="btn btn-outline-success"
-                  onClick={() => fetchProducts(meta.current_page + 1, true)}
-                  disabled={loadingMore}
-                >
-                  {loadingMore ? (
-                    <><span className="spinner-border spinner-border-sm me-2"></span>Loading…</>
-                  ) : (
-                    "Load more products"
-                  )}
-                </button>
-              </div>
+            {/* Pagination */}
+            {meta.total > 0 && (
+              <PaginationBar
+                page={page}
+                lastPage={meta.last_page}
+                total={meta.total}
+                perPage={meta.per_page ?? 12}
+                loading={loading}
+                onChange={(p) => setPage(p)}
+              />
             )}
           </>
         )}

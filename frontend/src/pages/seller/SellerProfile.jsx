@@ -29,7 +29,7 @@ export default function SellerProfile() {
   });
 
   const [zones,        setZones]        = useState([]);
-  const [imagePreview, setImagePreview] = useState(currentUser.avatarUrl || null);
+  const [imagePreview, setImagePreview] = useState(currentUser.avatar_url || currentUser.avatarUrl || null);
   const [imageFile,    setImageFile]    = useState(null);
   const fileInputRef = useRef(null);
 

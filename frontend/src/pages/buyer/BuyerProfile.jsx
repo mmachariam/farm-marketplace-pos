@@ -23,7 +23,7 @@ export default function BuyerProfile() {
     region: "",
   });
 
-  const [imagePreview, setImagePreview] = useState(currentUser.avatarUrl || null);
+  const [imagePreview, setImagePreview] = useState(currentUser.avatar_url || currentUser.avatarUrl || null);
   const [imageFile,    setImageFile]    = useState(null); // the actual File object
   const fileInputRef = useRef(null);
 

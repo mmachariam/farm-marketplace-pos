@@ -1,15 +1,7 @@
-// ===========================================
-// ADMIN REPORTS PAGE
-// Lets admin generate reports (sales, inventory, etc.)
-// and view a history of previously generated reports.
-//
-// Maps to: reports table
-//
-// Data flow:
-// - Fetch report history from GET /api/admin/reports
-// - Generate new report → POST /api/admin/reports
-//   { report_type, parameters: { date_from, date_to, ... } }
-// ===========================================
+// AdminReports — SokoMoja
+// Admin generates and views reports.
+// GET  /api/admin/reports
+// POST /api/admin/reports
 
 import { useState, useEffect } from "react";
 import DashboardLayout from "../../components/DashboardLayout";
@@ -25,66 +17,42 @@ function AdminReports() {
 
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError]     = useState("");
 
-  // ---- GENERATE REPORT FORM STATE ----
   const [reportType, setReportType] = useState("Sales summary");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateFrom, setDateFrom]     = useState("");
+  const [dateTo, setDateTo]         = useState("");
   const [generating, setGenerating] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
 
   useEffect(() => {
-    async function fetchReports() {
-      try {
-        setLoading(true);
-        setError("");
-
-        // TODO: replace with real API call
-        // const data = await apiRequest("/admin/reports");
-        // setReports(data);
-
-        // TEMPORARY sample data
-        await new Promise((res) => setTimeout(res, 500));
-        setReports([
-          { report_id: 1, report_type: "Sales summary — May",   generated_date: "2026-06-01", generated_by: "Admin" },
-          { report_id: 2, report_type: "Zone performance — Q2",  generated_date: "2026-05-28", generated_by: "Admin" },
-        ]);
-
-      } catch (err) {
-        setError(err.message || "Failed to load reports.");
-      } finally {
-        setLoading(false);
-      }
-    }
-
     fetchReports();
   }, []);
 
-  // ---- GENERATE REPORT ----
+  async function fetchReports() {
+    try {
+      setLoading(true);
+      setError("");
+      const res = await apiRequest("/admin/reports");
+      setReports(res.data?.data ?? []);
+    } catch (err) {
+      setError(err.message || "Failed to load reports.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const handleGenerate = async () => {
     setGenerating(true);
     setSuccessMsg("");
-
     try {
-      // TODO: replace with real API call
-      // const newReport = await apiRequest("/admin/reports", "POST", {
-      //   report_type: reportType,
-      //   parameters: { date_from: dateFrom, date_to: dateTo },
-      // });
-      // setReports((prev) => [newReport, ...prev]);
-
-      // TEMPORARY: simulate generating a report
-      await new Promise((res) => setTimeout(res, 1000));
-      const newReport = {
-        report_id: Date.now(),
-        report_type: `${reportType}${dateFrom && dateTo ? ` (${dateFrom} – ${dateTo})` : ""}`,
-        generated_date: new Date().toISOString().split("T")[0],
-        generated_by: "Admin",
-      };
-      setReports((prev) => [newReport, ...prev]);
-      setSuccessMsg("✅ Report generated successfully.");
-
+      const res = await apiRequest("/admin/reports", "POST", {
+        report_type: reportType,
+        parameters:  { date_from: dateFrom || null, date_to: dateTo || null },
+      });
+      setReports((prev) => [res.data, ...prev]);
+      setSuccessMsg("Report generated successfully.");
+      setTimeout(() => setSuccessMsg(""), 4000);
     } catch (err) {
       alert(`Failed to generate report: ${err.message}`);
     } finally {
@@ -95,7 +63,7 @@ function AdminReports() {
   return (
     <DashboardLayout title="Reports" navItems={navItems}>
 
-      {/* ---- GENERATE REPORT FORM ---- */}
+      {/* Generate report form */}
       <div className="dash-table-wrap" style={{ padding: "20px", marginBottom: "20px" }}>
 
         {successMsg && (
@@ -138,9 +106,9 @@ function AdminReports() {
         </button>
       </div>
 
-      {/* ---- REPORT HISTORY ---- */}
+      {/* Report history */}
       {loading && <div className="dash-loading">Loading reports…</div>}
-      {error && <div className="dash-error">⚠️ {error}</div>}
+      {error   && <div className="dash-error">⚠️ {error}</div>}
 
       {!loading && !error && (
         reports.length === 0 ? (
@@ -160,10 +128,13 @@ function AdminReports() {
                 {reports.map((report) => (
                   <tr key={report.report_id}>
                     <td>{report.report_type}</td>
-                    <td>{report.generated_date}</td>
+                    <td>
+                      {report.generated_date
+                        ? new Date(report.generated_date).toLocaleDateString("en-KE")
+                        : "—"}
+                    </td>
                     <td>{report.generated_by}</td>
                     <td>
-                      {/* TODO: link to actual file download once backend generates files */}
                       <button
                         style={{ border: "none", background: "none", color: "#1D9E75", cursor: "pointer", fontSize: "13px" }}
                         onClick={() => alert("Download coming soon")}

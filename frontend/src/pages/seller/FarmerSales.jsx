@@ -1,11 +1,11 @@
 // FarmerSales — SokoMoja
 // Farmer records offline (farm-gate) sales and views sales history/report.
-// Maps to: pos_sales + pos_sale_items tables (repurposed for farmer offline sales)
 // GET  /api/seller/sales
 // POST /api/seller/sales
 
 import { useState, useEffect } from "react";
 import DashboardLayout from "../../components/DashboardLayout";
+import { apiRequest } from "../../utils/api";
 
 function FarmerSales() {
   const navItems = [
@@ -18,15 +18,15 @@ function FarmerSales() {
     { label: "Profile",    icon: "bi-person-circle",  path: "/seller/profile",    active: false },
   ];
 
-  // ---- VIEW TOGGLE: "record" (new sale) or "history" (past sales) ----
   const [view, setView] = useState("history");
 
-  // ---- HISTORY STATE ----
+  // History state
   const [sales, setSales]     = useState([]);
+  const [summary, setSummary] = useState({ todayRevenue: 0, totalRevenue: 0, todaySales: 0, totalSales: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
 
-  // ---- NEW SALE FORM STATE ----
+  // New sale form state
   const [saleItems, setSaleItems] = useState([
     { product_name: "", quantity: "", unit_price: "" },
   ]);
@@ -37,34 +37,29 @@ function FarmerSales() {
   const [formErrors, setFormErrors]       = useState({});
 
   useEffect(() => {
-    async function fetchSales() {
-      try {
-        setLoading(true);
-        setError("");
-        // TODO: const data = await apiRequest("/seller/sales");
-        await new Promise((r) => setTimeout(r, 500));
-        setSales([
-          { sale_id: "FS201", date: "2026-06-09", buyer: "John M.",       items: "Broccoli × 5 kg", total: 400,  method: "M-Pesa" },
-          { sale_id: "FS200", date: "2026-06-09", buyer: "Walk-in buyer", items: "Maize × 10 kg",   total: 450,  method: "Cash"   },
-          { sale_id: "FS199", date: "2026-06-08", buyer: "Mary W.",       items: "Avocados × 30 kg",total: 450,  method: "M-Pesa" },
-          { sale_id: "FS198", date: "2026-06-07", buyer: "Walk-in buyer", items: "Kale × 8 kg",     total: 240,  method: "Cash"   },
-          { sale_id: "FS197", date: "2026-06-06", buyer: "Peter O.",      items: "Broccoli × 12 kg",total: 960,  method: "M-Pesa" },
-        ]);
-      } catch (err) {
-        setError(err.message || "Failed to load sales.");
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchSales();
   }, []);
 
-  // ---- SALES STATS ----
-  const totalRevenue = sales.reduce((sum, s) => sum + s.total, 0);
-  const todaySales   = sales.filter((s) => s.date === "2026-06-09");
-  const todayRevenue = todaySales.reduce((sum, s) => sum + s.total, 0);
+  async function fetchSales() {
+    try {
+      setLoading(true);
+      setError("");
+      const res = await apiRequest("/seller/sales");
+      setSales(res.data?.data ?? []);
+      setSummary({
+        todayRevenue: res.summary?.today_revenue ?? 0,
+        totalRevenue: res.summary?.total_revenue ?? 0,
+        todaySales:   res.summary?.today_count   ?? 0,
+        totalSales:   res.summary?.total_count   ?? 0,
+      });
+    } catch (err) {
+      setError(err.message || "Failed to load sales.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  // ---- SALE ITEM HANDLERS ----
+  // Sale item handlers
   const handleItemChange = (index, field, value) => {
     setSaleItems((prev) =>
       prev.map((item, i) => i === index ? { ...item, [field]: value } : item)
@@ -102,30 +97,24 @@ function FarmerSales() {
     if (!validateSale()) return;
     setSaving(true);
     try {
-      // TODO: await apiRequest("/seller/sales", "POST", {
-      //   buyer_name: buyerName,
-      //   payment_method: paymentMethod,
-      //   total_amount: saleTotal,
-      //   items: saleItems.map((i) => ({
-      //     product_name: i.product_name,
-      //     quantity: parseFloat(i.quantity),
-      //     unit_price: parseFloat(i.unit_price),
-      //     subtotal: parseFloat(i.quantity) * parseFloat(i.unit_price),
-      //   })),
-      // });
-      await new Promise((r) => setTimeout(r, 900));
+      const res = await apiRequest("/seller/sales", "POST", {
+        buyer_name:     buyerName || null,
+        payment_method: paymentMethod,
+        items: saleItems.map((i) => ({
+          product_name: i.product_name,
+          quantity:     parseFloat(i.quantity),
+          unit_price:   parseFloat(i.unit_price),
+        })),
+      });
 
-      // Add to local list
-      const newSale = {
-        sale_id: `FS${Date.now()}`,
-        date: new Date().toISOString().split("T")[0],
-        buyer: buyerName || "Walk-in buyer",
-        items: saleItems.map((i) => `${i.product_name} × ${i.quantity} kg`).join(", "),
-        total: saleTotal,
-        method: paymentMethod,
-      };
-      setSales((prev) => [newSale, ...prev]);
-      setSuccessMsg(`✅ Sale recorded — KES ${saleTotal} via ${paymentMethod}`);
+      setSales((prev) => [res.data, ...prev]);
+      setSummary((prev) => ({
+        todayRevenue: prev.todayRevenue + (res.data?.total_amount ?? 0),
+        totalRevenue: prev.totalRevenue + (res.data?.total_amount ?? 0),
+        todaySales:   prev.todaySales + 1,
+        totalSales:   prev.totalSales + 1,
+      }));
+      setSuccessMsg(`Sale recorded — KES ${saleTotal.toFixed(2)} via ${paymentMethod}`);
       setSaleItems([{ product_name: "", quantity: "", unit_price: "" }]);
       setBuyerName("");
       setView("history");
@@ -169,25 +158,25 @@ function FarmerSales() {
             <div className="col-6 col-md-3">
               <div className="sm-card p-3">
                 <div className="text-muted mb-1" style={{ fontSize: "0.75rem" }}>Today's revenue</div>
-                <div className="fw-bold" style={{ fontSize: "1.2rem" }}>KES {todayRevenue.toLocaleString()}</div>
+                <div className="fw-bold" style={{ fontSize: "1.2rem" }}>KES {summary.todayRevenue.toLocaleString()}</div>
               </div>
             </div>
             <div className="col-6 col-md-3">
               <div className="sm-card p-3">
                 <div className="text-muted mb-1" style={{ fontSize: "0.75rem" }}>Total (all time)</div>
-                <div className="fw-bold" style={{ fontSize: "1.2rem" }}>KES {totalRevenue.toLocaleString()}</div>
+                <div className="fw-bold" style={{ fontSize: "1.2rem" }}>KES {summary.totalRevenue.toLocaleString()}</div>
               </div>
             </div>
             <div className="col-6 col-md-3">
               <div className="sm-card p-3">
                 <div className="text-muted mb-1" style={{ fontSize: "0.75rem" }}>Sales today</div>
-                <div className="fw-bold" style={{ fontSize: "1.2rem" }}>{todaySales.length}</div>
+                <div className="fw-bold" style={{ fontSize: "1.2rem" }}>{summary.todaySales}</div>
               </div>
             </div>
             <div className="col-6 col-md-3">
               <div className="sm-card p-3">
                 <div className="text-muted mb-1" style={{ fontSize: "0.75rem" }}>Total transactions</div>
-                <div className="fw-bold" style={{ fontSize: "1.2rem" }}>{sales.length}</div>
+                <div className="fw-bold" style={{ fontSize: "1.2rem" }}>{summary.totalSales}</div>
               </div>
             </div>
           </div>
@@ -196,32 +185,40 @@ function FarmerSales() {
           {error   && <div className="alert alert-danger">{error}</div>}
 
           {!loading && !error && (
-            <div className="sm-card">
-              <table className="table table-hover mb-0" style={{ fontSize: "0.875rem" }}>
-                <thead className="table-light">
-                  <tr>
-                    <th>Sale ID</th>
-                    <th>Date</th>
-                    <th>Buyer</th>
-                    <th>Items</th>
-                    <th>Total</th>
-                    <th>Method</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sales.map((sale) => (
-                    <tr key={sale.sale_id}>
-                      <td className="text-muted">#{sale.sale_id}</td>
-                      <td>{sale.date}</td>
-                      <td>{sale.buyer}</td>
-                      <td className="text-muted" style={{ fontSize: "0.8rem" }}>{sale.items}</td>
-                      <td className="fw-semibold" style={{ color: "var(--sm-green)" }}>KES {sale.total}</td>
-                      <td>{sale.method}</td>
+            sales.length === 0 ? (
+              <div className="text-center text-muted py-5">No sales recorded yet.</div>
+            ) : (
+              <div className="sm-card">
+                <table className="table table-hover mb-0" style={{ fontSize: "0.875rem" }}>
+                  <thead className="table-light">
+                    <tr>
+                      <th>Sale ID</th>
+                      <th>Date</th>
+                      <th>Buyer</th>
+                      <th>Items</th>
+                      <th>Total</th>
+                      <th>Method</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {sales.map((sale) => (
+                      <tr key={sale.sale_id}>
+                        <td className="text-muted">#{sale.sale_id}</td>
+                        <td>{sale.sale_date ? new Date(sale.sale_date).toLocaleDateString("en-KE") : "—"}</td>
+                        <td>{sale.buyer_name || "Walk-in buyer"}</td>
+                        <td className="text-muted" style={{ fontSize: "0.8rem" }}>
+                          {(sale.items ?? []).map((i) => `${i.product_name} × ${i.quantity} ${i.unit}`).join(", ")}
+                        </td>
+                        <td className="fw-semibold" style={{ color: "var(--sm-green)" }}>
+                          KES {Number(sale.total_amount).toLocaleString()}
+                        </td>
+                        <td>{sale.payment_method}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
           )}
         </>
       )}

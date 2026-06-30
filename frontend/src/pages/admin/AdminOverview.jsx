@@ -1,12 +1,6 @@
-// ===========================================
-// ADMIN OVERVIEW PAGE
-// First page an admin sees after login.
-// Shows platform-wide stats: total users, orders, GMV,
-// order status breakdown, and top categories.
-//
-// Data flow:
-// - Fetch from GET /api/admin/overview
-// ===========================================
+// AdminOverview — SokoMoja
+// Platform-wide stats for admin.
+// GET /api/admin/overview
 
 import { useState, useEffect } from "react";
 import DashboardLayout from "../../components/DashboardLayout";
@@ -20,47 +14,23 @@ function AdminOverview() {
     { label: "Reports",   icon: "bi-file-earmark-text", path: "/admin/reports",   active: false },
   ];
 
-  const [data, setData] = useState(null);
+  const [data, setData]     = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError]   = useState("");
 
   useEffect(() => {
     async function fetchOverview() {
       try {
         setLoading(true);
         setError("");
-
-        // TODO: replace with real API call
-        // const result = await apiRequest("/admin/overview");
-        // setData(result);
-
-        // TEMPORARY sample data
-        await new Promise((res) => setTimeout(res, 500));
-        setData({
-          totalUsers: 248,
-          ordersThisMonth: 1340,
-          gmv: 1200000,
-          ordersByStatus: [
-            { status: "Pending",   count: 42,   className: "dash-badge-pending"   },
-            { status: "Confirmed", count: 89,   className: "dash-badge-confirmed" },
-            { status: "Delivered", count: 1174, className: "dash-badge-delivered" },
-            { status: "Cancelled", count: 35,   className: "dash-badge-cancelled" },
-          ],
-          topCategories: [
-            { category: "Vegetables", sales: 480000 },
-            { category: "Cereals",    sales: 320000 },
-            { category: "Fruits",     sales: 240000 },
-            { category: "Dairy",      sales: 160000 },
-          ],
-        });
-
+        const res = await apiRequest("/admin/overview");
+        setData(res.data);
       } catch (err) {
         setError(err.message || "Failed to load overview data.");
       } finally {
         setLoading(false);
       }
     }
-
     fetchOverview();
   }, []);
 
@@ -68,27 +38,43 @@ function AdminOverview() {
     <DashboardLayout title="Overview" navItems={navItems}>
 
       {loading && <div className="dash-loading">Loading overview…</div>}
-      {error && <div className="dash-error">⚠️ {error}</div>}
+      {error   && <div className="dash-error">⚠️ {error}</div>}
 
       {!loading && !error && data && (
         <>
-          {/* ---- TOP-LEVEL STATS ---- */}
+          {/* Top-level stats */}
           <div className="dash-stats-row">
             <div className="dash-stat-card">
               <div className="dash-stat-label">Total users</div>
-              <div className="dash-stat-value">{data.totalUsers}</div>
+              <div className="dash-stat-value">{data.total_users}</div>
             </div>
             <div className="dash-stat-card">
-              <div className="dash-stat-label">Orders this month</div>
-              <div className="dash-stat-value">{data.ordersThisMonth.toLocaleString()}</div>
+              <div className="dash-stat-label">Total orders</div>
+              <div className="dash-stat-value">{Number(data.total_orders).toLocaleString()}</div>
             </div>
             <div className="dash-stat-card">
-              <div className="dash-stat-label">GMV (this month)</div>
-              <div className="dash-stat-value">KES {(data.gmv / 1000000).toFixed(1)}M</div>
+              <div className="dash-stat-label">Total revenue</div>
+              <div className="dash-stat-value">KES {(data.total_revenue / 1000000).toFixed(1)}M</div>
             </div>
           </div>
 
-          {/* ---- TWO-COLUMN TABLES ---- */}
+          {/* Secondary stats row */}
+          <div className="dash-stats-row" style={{ marginBottom: 20 }}>
+            <div className="dash-stat-card">
+              <div className="dash-stat-label">Farmers</div>
+              <div className="dash-stat-value">{data.total_farmers}</div>
+            </div>
+            <div className="dash-stat-card">
+              <div className="dash-stat-label">Verified farmers</div>
+              <div className="dash-stat-value">{data.verified_farmers}</div>
+            </div>
+            <div className="dash-stat-card">
+              <div className="dash-stat-label">New users this month</div>
+              <div className="dash-stat-value">{data.new_users_this_month}</div>
+            </div>
+          </div>
+
+          {/* Two-column tables */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
 
             {/* Orders by status */}
@@ -100,10 +86,14 @@ function AdminOverview() {
                     <tr><th>Status</th><th>Count</th></tr>
                   </thead>
                   <tbody>
-                    {data.ordersByStatus.map((row) => (
-                      <tr key={row.status}>
-                        <td><span className={`dash-badge ${row.className}`}>{row.status}</span></td>
-                        <td>{row.count.toLocaleString()}</td>
+                    {Object.entries(data.orders_by_status).map(([status, count]) => (
+                      <tr key={status}>
+                        <td>
+                          <span className={`dash-badge dash-badge-${status.toLowerCase()}`}>
+                            {status}
+                          </span>
+                        </td>
+                        <td>{Number(count).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -117,13 +107,13 @@ function AdminOverview() {
               <div className="dash-table-wrap">
                 <table className="dash-table">
                   <thead>
-                    <tr><th>Category</th><th>Sales (KES)</th></tr>
+                    <tr><th>Category</th><th>Orders</th></tr>
                   </thead>
                   <tbody>
-                    {data.topCategories.map((row) => (
+                    {(data.top_categories ?? []).map((row) => (
                       <tr key={row.category}>
                         <td>{row.category}</td>
-                        <td>{row.sales.toLocaleString()}</td>
+                        <td>{Number(row.order_volume).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>

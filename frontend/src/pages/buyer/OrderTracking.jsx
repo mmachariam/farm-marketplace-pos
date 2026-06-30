@@ -1,6 +1,5 @@
 // OrderTracking — SokoMoja
 // Buyer can track a specific order's status with a visual progress stepper.
-// Maps to: orders + deliveries + payments tables
 // Route: /buyer/orders/:orderId
 
 import { useState, useEffect } from "react";
@@ -22,11 +21,8 @@ function OrderTracking() {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
 
-  // Review state
-  const [showReviewForm, setShowReviewForm]   = useState(false);
-  const [reviewRating, setReviewRating]       = useState(5);
-  const [reviewComment, setReviewComment]     = useState("");
-  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  // Per-item review state: { [product_id]: { rating, comment, submitted, submitting, showForm } }
+  const [reviewState, setReviewState] = useState({});
 
   useEffect(() => {
     async function fetchOrder() {
@@ -44,7 +40,6 @@ function OrderTracking() {
     fetchOrder();
   }, [orderId]);
 
-  // Progress steps mapped to order statuses
   const steps = [
     { key: "Pending",   label: "Order placed",          icon: "bi-check-circle"  },
     { key: "Confirmed", label: "Confirmed by farmer",   icon: "bi-person-check"  },
@@ -58,14 +53,6 @@ function OrderTracking() {
 
   const currentStep = statusIndex[order?.order_status] ?? 0;
 
-  const handleReviewSubmit = async (e) => {
-    e.preventDefault();
-    // TODO: wire to POST /api/reviews once that endpoint is implemented
-    await new Promise((r) => setTimeout(r, 700));
-    setReviewSubmitted(true);
-    setShowReviewForm(false);
-  };
-
   const badgeClass = {
     Pending:   "badge-pending",
     Confirmed: "badge-confirmed",
@@ -73,12 +60,39 @@ function OrderTracking() {
     Cancelled: "badge-cancelled",
   };
 
-  // Derived display values
-  const zoneName       = order?.delivery?.zone?.zone_name ?? null;
-  const deliveryAddr   = order?.delivery?.delivery_address ?? null;
-  const locationLabel  = zoneName ?? deliveryAddr ?? "—";
-  const pickupAddress  = order?.delivery?.zone?.pickup_address ?? deliveryAddr ?? "—";
-  const estimatedDate  = order?.delivery?.delivery_date ?? null;
+  const zoneName      = order?.delivery?.zone?.zone_name ?? null;
+  const deliveryAddr  = order?.delivery?.delivery_address ?? null;
+  const locationLabel = zoneName ?? deliveryAddr ?? "—";
+  const pickupAddress = order?.delivery?.zone?.pickup_address ?? deliveryAddr ?? "—";
+  const estimatedDate = order?.delivery?.delivery_date ?? null;
+
+  // ── Per-item review helpers ──────────────────────────────────────
+  const getItemReview = (productId) =>
+    reviewState[productId] ?? { rating: 5, comment: "", submitted: false, submitting: false, showForm: false };
+
+  const setItemReview = (productId, patch) =>
+    setReviewState((prev) => ({
+      ...prev,
+      [productId]: { ...getItemReview(productId), ...patch },
+    }));
+
+  const handleReviewSubmit = async (e, productId) => {
+    e.preventDefault();
+    const rv = getItemReview(productId);
+    setItemReview(productId, { submitting: true });
+    try {
+      await apiRequest("/reviews", "POST", {
+        order_id:   Number(orderId),
+        product_id: productId,
+        rating:     rv.rating,
+        comment:    rv.comment || null,
+      });
+      setItemReview(productId, { submitted: true, submitting: false, showForm: false });
+    } catch (err) {
+      alert("Failed to submit review: " + err.message);
+      setItemReview(productId, { submitting: false });
+    }
+  };
 
   return (
     <DashboardLayout title={`Order #${orderId || "..."}`} navItems={navItems}>
@@ -126,7 +140,6 @@ function OrderTracking() {
                   const current = i === currentStep;
                   return (
                     <div key={i} className="d-flex gap-3 mb-3 align-items-start">
-                      {/* Icon circle */}
                       <div
                         className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
                         style={{
@@ -139,7 +152,6 @@ function OrderTracking() {
                       >
                         <i className={`bi ${step.icon}`}></i>
                       </div>
-                      {/* Label */}
                       <div className="pt-1">
                         <div
                           className="fw-semibold"
@@ -178,7 +190,7 @@ function OrderTracking() {
 
           </div>
 
-          {/* Right: order summary + review */}
+          {/* Right: order summary + reviews */}
           <div className="col-12 col-lg-5">
 
             {/* Order summary */}
@@ -215,73 +227,87 @@ function OrderTracking() {
               </div>
             </div>
 
-            {/* Leave a review (only after delivery) */}
-            {order.order_status === "Delivered" && (
+            {/* Per-item reviews (only after delivery) */}
+            {order.order_status === "Delivered" && (order.items ?? []).length > 0 && (
               <div className="sm-card p-4">
                 <h6 className="fw-bold mb-3">
                   <i className="bi bi-star me-2" style={{ color: "var(--sm-green)" }}></i>
-                  Rate this order
+                  Rate your items
                 </h6>
 
-                {reviewSubmitted ? (
-                  <div className="alert alert-success py-2 small mb-0">
-                    ✅ Review submitted — thank you!
-                  </div>
-                ) : showReviewForm ? (
-                  <form onSubmit={handleReviewSubmit}>
-                    <div className="mb-2">
-                      <label className="form-label small fw-semibold">Rating</label>
-                      <div className="d-flex gap-1">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <button
-                            key={star} type="button"
-                            onClick={() => setReviewRating(star)}
-                            style={{
-                              background: "none", border: "none",
-                              fontSize: "1.4rem", cursor: "pointer",
-                              color: star <= reviewRating ? "#f59e0b" : "#e0ded5",
-                            }}
-                          >
-                            ★
-                          </button>
-                        ))}
+                {(order.items ?? []).map((item) => {
+                  const productId = item.product_id;
+                  if (!productId) return null;
+                  const rv = getItemReview(productId);
+
+                  return (
+                    <div key={productId} className="mb-3 pb-3 border-bottom">
+                      <div className="fw-semibold mb-2" style={{ fontSize: "0.875rem" }}>
+                        {item.product_name}
                       </div>
+
+                      {rv.submitted ? (
+                        <div className="alert alert-success py-2 small mb-0">
+                          ✅ Review submitted — thank you!
+                        </div>
+                      ) : rv.showForm ? (
+                        <form onSubmit={(e) => handleReviewSubmit(e, productId)}>
+                          <div className="mb-2">
+                            <div className="d-flex gap-1">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                  key={star} type="button"
+                                  onClick={() => setItemReview(productId, { rating: star })}
+                                  style={{
+                                    background: "none", border: "none",
+                                    fontSize: "1.3rem", cursor: "pointer",
+                                    color: star <= rv.rating ? "#f59e0b" : "#e0ded5",
+                                  }}
+                                >
+                                  ★
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="mb-2">
+                            <textarea
+                              className="form-control form-control-sm"
+                              rows={2}
+                              placeholder="Optional comment…"
+                              value={rv.comment}
+                              onChange={(e) => setItemReview(productId, { comment: e.target.value })}
+                            />
+                          </div>
+                          <div className="d-flex gap-2">
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-secondary"
+                              onClick={() => setItemReview(productId, { showForm: false })}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              className="btn btn-sm flex-grow-1"
+                              style={{ background: "var(--sm-green)", color: "#fff", border: "none" }}
+                              disabled={rv.submitting}
+                            >
+                              {rv.submitting ? "Submitting…" : "Submit review"}
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <button
+                          className="btn btn-sm"
+                          style={{ border: "1px solid var(--sm-green)", color: "var(--sm-green)", fontSize: "0.8rem" }}
+                          onClick={() => setItemReview(productId, { showForm: true })}
+                        >
+                          <i className="bi bi-pencil me-1"></i>Write a review
+                        </button>
+                      )}
                     </div>
-                    <div className="mb-3">
-                      <textarea
-                        className="form-control"
-                        rows={3}
-                        placeholder="Share your experience with this farmer…"
-                        value={reviewComment}
-                        onChange={(e) => setReviewComment(e.target.value)}
-                      />
-                    </div>
-                    <div className="d-flex gap-2">
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-outline-secondary"
-                        onClick={() => setShowReviewForm(false)}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        className="btn btn-sm flex-grow-1"
-                        style={{ background: "var(--sm-green)", color: "#fff", border: "none" }}
-                      >
-                        Submit review
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <button
-                    className="btn btn-sm w-100"
-                    style={{ border: "1px solid var(--sm-green)", color: "var(--sm-green)" }}
-                    onClick={() => setShowReviewForm(true)}
-                  >
-                    <i className="bi bi-pencil me-2"></i>Write a review
-                  </button>
-                )}
+                  );
+                })}
               </div>
             )}
 

@@ -1,13 +1,12 @@
 // FarmerSchedule — SokoMoja
-// Farmer sets and manages their collection schedule —
-// which days/times they will have produce ready at the zone pickup point.
-// Maps to: a schedules table (new — to be added to the backend schema)
-// GET  /api/seller/schedule
-// POST /api/seller/schedule
+// Farmer sets and manages their collection schedule.
+// GET    /api/seller/schedule
+// POST   /api/seller/schedule
 // DELETE /api/seller/schedule/{id}
 
 import { useState, useEffect } from "react";
 import DashboardLayout from "../../components/DashboardLayout";
+import { apiRequest } from "../../utils/api";
 
 function FarmerSchedule() {
   const navItems = [
@@ -24,51 +23,45 @@ function FarmerSchedule() {
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState("");
 
-  // New schedule form
-  const [showForm, setShowForm]   = useState(false);
-  const [formData, setFormData]   = useState({ day: "Monday", time: "08:00", notes: "" });
-  const [saving, setSaving]       = useState(false);
+  const [showForm, setShowForm]     = useState(false);
+  const [formData, setFormData]     = useState({ day: "Monday", arrival_time: "08:00", notes: "" });
+  const [saving, setSaving]         = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [deletingId, setDeletingId] = useState(null);
 
   const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
   useEffect(() => {
-    async function fetchSchedule() {
-      try {
-        setLoading(true);
-        // TODO: const data = await apiRequest("/seller/schedule");
-        await new Promise((r) => setTimeout(r, 400));
-        setSchedules([
-          { id: 1, day: "Tuesday",   time: "07:00", notes: "Fresh broccoli and kale available", zone: "Kiambu Zone" },
-          { id: 2, day: "Friday",    time: "07:30", notes: "Avocados and tomatoes",              zone: "Kiambu Zone" },
-          { id: 3, day: "Saturday",  time: "06:30", notes: "All produce — largest batch",        zone: "Kiambu Zone" },
-        ]);
-      } catch (err) {
-        setError(err.message || "Failed to load schedule.");
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchSchedule();
   }, []);
+
+  async function fetchSchedule() {
+    try {
+      setLoading(true);
+      setError("");
+      const res = await apiRequest("/seller/schedule");
+      setSchedules(res.data ?? []);
+    } catch (err) {
+      setError(err.message || "Failed to load schedule.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const handleAdd = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
-      // TODO: await apiRequest("/seller/schedule", "POST", formData);
-      await new Promise((r) => setTimeout(r, 700));
-      const newEntry = {
-        id: Date.now(),
-        day: formData.day,
-        time: formData.time,
-        notes: formData.notes,
-        zone: "Kiambu Zone", // would come from the user's saved zone
-      };
-      setSchedules((prev) => [...prev, newEntry].sort((a, b) => days.indexOf(a.day) - days.indexOf(b.day)));
-      setSuccessMsg("✅ Schedule entry added.");
-      setFormData({ day: "Monday", time: "08:00", notes: "" });
+      const res = await apiRequest("/seller/schedule", "POST", {
+        day:          formData.day,
+        arrival_time: formData.arrival_time,
+        notes:        formData.notes || null,
+      });
+      setSchedules((prev) =>
+        [...prev, res.data].sort((a, b) => days.indexOf(a.day) - days.indexOf(b.day))
+      );
+      setSuccessMsg("Schedule entry added.");
+      setFormData({ day: "Monday", arrival_time: "08:00", notes: "" });
       setShowForm(false);
       setTimeout(() => setSuccessMsg(""), 3000);
     } catch (err) {
@@ -82,8 +75,7 @@ function FarmerSchedule() {
     if (!window.confirm("Remove this schedule entry?")) return;
     setDeletingId(id);
     try {
-      // TODO: await apiRequest(`/seller/schedule/${id}`, "DELETE");
-      await new Promise((r) => setTimeout(r, 500));
+      await apiRequest(`/seller/schedule/${id}`, "DELETE");
       setSchedules((prev) => prev.filter((s) => s.id !== id));
     } catch (err) {
       alert("Failed to remove: " + err.message);
@@ -124,17 +116,31 @@ function FarmerSchedule() {
             <div className="row g-3">
               <div className="col-12 col-md-3">
                 <label className="form-label fw-semibold small">Day</label>
-                <select className="form-select" value={formData.day} onChange={(e) => setFormData((p) => ({ ...p, day: e.target.value }))}>
+                <select
+                  className="form-select"
+                  value={formData.day}
+                  onChange={(e) => setFormData((p) => ({ ...p, day: e.target.value }))}
+                >
                   {days.map((d) => <option key={d}>{d}</option>)}
                 </select>
               </div>
               <div className="col-12 col-md-3">
                 <label className="form-label fw-semibold small">Arrival time</label>
-                <input type="time" className="form-control" value={formData.time} onChange={(e) => setFormData((p) => ({ ...p, time: e.target.value }))} />
+                <input
+                  type="time"
+                  className="form-control"
+                  value={formData.arrival_time}
+                  onChange={(e) => setFormData((p) => ({ ...p, arrival_time: e.target.value }))}
+                />
               </div>
               <div className="col-12 col-md-6">
                 <label className="form-label fw-semibold small">Notes (optional)</label>
-                <input className="form-control" placeholder="e.g. Tomatoes and broccoli available" value={formData.notes} onChange={(e) => setFormData((p) => ({ ...p, notes: e.target.value }))} />
+                <input
+                  className="form-control"
+                  placeholder="e.g. Tomatoes and broccoli available"
+                  value={formData.notes}
+                  onChange={(e) => setFormData((p) => ({ ...p, notes: e.target.value }))}
+                />
               </div>
             </div>
             <button
@@ -167,7 +173,7 @@ function FarmerSchedule() {
                     <div>
                       <div className="fw-bold" style={{ fontSize: "0.95rem" }}>{entry.day}</div>
                       <div className="text-muted small">
-                        <i className="bi bi-clock me-1"></i>{entry.time}
+                        <i className="bi bi-clock me-1"></i>{entry.arrival_time}
                       </div>
                     </div>
                     <button
@@ -178,10 +184,12 @@ function FarmerSchedule() {
                       {deletingId === entry.id ? "…" : <i className="bi bi-trash"></i>}
                     </button>
                   </div>
-                  <div className="text-muted small mb-2">
-                    <i className="bi bi-geo-alt me-1" style={{ color: "var(--sm-green)" }}></i>
-                    {entry.zone}
-                  </div>
+                  {entry.zone && (
+                    <div className="text-muted small mb-2">
+                      <i className="bi bi-geo-alt me-1" style={{ color: "var(--sm-green)" }}></i>
+                      {entry.zone.zone_name}
+                    </div>
+                  )}
                   {entry.notes && (
                     <div className="p-2 rounded" style={{ background: "var(--sm-green-light)", fontSize: "0.78rem", color: "#3B6D11" }}>
                       {entry.notes}

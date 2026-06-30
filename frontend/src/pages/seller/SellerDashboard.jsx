@@ -5,6 +5,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
+import { apiRequest } from "../../utils/api";
 
 function SellerDashboard() {
   const navItems = [
@@ -25,22 +26,15 @@ function SellerDashboard() {
     async function fetchSummary() {
       try {
         setLoading(true);
-        // TODO: const data = await apiRequest("/seller/summary");
-        await new Promise((r) => setTimeout(r, 500));
+        setError("");
+        const res = await apiRequest("/seller/summary");
+        const d   = res.data;
         setStats({
-          totalSales: 24500,
-          activeListings: 8,
-          pendingOrders: 3,
-          averageRating: 4.7,
-          weeklySales: [
-            { day: "Mon", amount: 1800 },
-            { day: "Tue", amount: 3200 },
-            { day: "Wed", amount: 2400 },
-            { day: "Thu", amount: 4100 },
-            { day: "Fri", amount: 2800 },
-            { day: "Sat", amount: 4600 },
-            { day: "Sun", amount: 3500 },
-          ],
+          totalSales:     d.total_sales,
+          activeListings: d.active_listings,
+          pendingOrders:  d.pending_orders,
+          averageRating:  d.average_rating ?? 0,
+          weeklySales:    d.weekly_sales,
         });
       } catch (err) {
         setError(err.message || "Failed to load dashboard.");
@@ -51,7 +45,7 @@ function SellerDashboard() {
     fetchSummary();
   }, []);
 
-  const maxSale = stats ? Math.max(...stats.weeklySales.map((d) => d.amount)) : 1;
+  const maxSale = stats ? Math.max(...stats.weeklySales.map((d) => d.amount), 1) : 1;
 
   return (
     <DashboardLayout title="Dashboard" navItems={navItems}>

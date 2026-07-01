@@ -3,6 +3,7 @@
 // GET /api/admin/overview
 
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
 import { apiRequest } from "../../utils/api";
 
@@ -12,6 +13,7 @@ function AdminOverview() {
     { label: "Users",     icon: "bi-people",            path: "/admin/users",     active: false },
     { label: "Zones",     icon: "bi-geo-alt",           path: "/admin/zones",     active: false },
     { label: "Reports",   icon: "bi-file-earmark-text", path: "/admin/reports",   active: false },
+    { label: "Profile",   icon: "bi-person-circle",     path: "/admin/profile",   active: false },
   ];
 
   const [data, setData]     = useState(null);
@@ -55,6 +57,31 @@ function AdminOverview() {
             <div className="dash-stat-card">
               <div className="dash-stat-label">Total revenue</div>
               <div className="dash-stat-value">KES {(data.total_revenue / 1000000).toFixed(1)}M</div>
+            </div>
+          </div>
+
+          {/* Quick actions */}
+          <div className="card border-0 shadow-sm mb-4">
+            <div className="card-body">
+              <div style={{ fontSize: "14px", fontWeight: 600, marginBottom: "12px" }}>Quick actions</div>
+              <div className="d-flex flex-wrap gap-2">
+                <Link to="/admin/users" state={{ openCreate: true }}
+                  className="btn btn-success btn-sm d-flex align-items-center gap-2">
+                  <i className="bi bi-person-plus"></i> Create admin
+                </Link>
+                <Link to="/admin/zones" state={{ openForm: true }}
+                  className="btn btn-outline-success btn-sm d-flex align-items-center gap-2">
+                  <i className="bi bi-geo-alt"></i> Add pickup zone
+                </Link>
+                <Link to="/admin/reports"
+                  className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2">
+                  <i className="bi bi-file-earmark-text"></i> View reports
+                </Link>
+                <Link to="/admin/users" state={{ roleFilter: "seller" }}
+                  className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2">
+                  <i className="bi bi-people"></i> View pending farmers
+                </Link>
+              </div>
             </div>
           </div>
 

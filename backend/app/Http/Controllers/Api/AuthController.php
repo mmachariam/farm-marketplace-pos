@@ -68,23 +68,35 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $credentials = $request->only('email', 'password');
+        $user = User::where('email', $request->email)->first();
 
-        if (!$token = JWTAuth::attempt($credentials)) {
+        if (!$user) {
             return response()->json([
-                'message' => 'Invalid email or password',
+                'message' => 'Account not found.',
             ], 401);
         }
 
-        $user = auth()->user();
+        if (!Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'message' => 'Incorrect password.',
+            ], 401);
+        }
 
         // Block suspended accounts
         if ($user->status === 'suspended') {
-            JWTAuth::invalidate($token);
             return response()->json([
-                'message' => 'Your account has been suspended. Please contact support.',
+                'message' => 'Your account has been suspended. Please contact the administrator.',
             ], 403);
         }
+
+        // Farmers must be verified by an admin before they can sign in
+        if ($user->role === 'seller' && !$user->is_verified) {
+            return response()->json([
+                'message' => 'Your farmer account is awaiting administrator verification.',
+            ], 403);
+        }
+
+        $token = JWTAuth::fromUser($user);
 
         return response()->json([
             'message' => 'Login successful',

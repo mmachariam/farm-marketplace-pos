@@ -5,28 +5,45 @@
 // PATCH  /api/admin/users/{id}/verify  (verify farmer)
 
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
 import PaginationBar from "../../components/PaginationBar";
 import { apiRequest } from "../../utils/api";
 
+// Display-only copy of the backend's DEFAULT_USER_PASSWORD (config/sokomoja.php),
+// needed here only for the confirmation prompt text below — the actual reset
+// always uses the value returned by the backend response.
+const DEFAULT_PASSWORD = "SokoMoja2026!";
+
 export default function AdminUsers() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const navItems = [
     { label: "Overview",  icon: "bi-grid-1x2",          path: "/admin/overview",  active: false },
     { label: "Users",     icon: "bi-people",            path: "/admin/users",     active: true  },
     { label: "Zones",     icon: "bi-geo-alt",           path: "/admin/zones",     active: false },
     { label: "Reports",   icon: "bi-file-earmark-text", path: "/admin/reports",   active: false },
+    { label: "Profile",   icon: "bi-person-circle",     path: "/admin/profile",   active: false },
   ];
 
   const [users,       setUsers]       = useState([]);
   const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState("");
   const [searchTerm,  setSearchTerm]  = useState("");
-  const [roleFilter,  setRoleFilter]  = useState("");
+  const [roleFilter,  setRoleFilter]  = useState(location.state?.roleFilter || "");
   const [updatingId,  setUpdatingId]  = useState(null);
   const [successMsg,  setSuccessMsg]  = useState("");
   const [pagination,  setPagination]  = useState({ total: 0, current_page: 1, last_page: 1 });
   // AdminUserController meta does not include per_page; 20 matches paginate(20) in the controller
   const perPage = 20;
+
+  // ── Create admin modal ────────────────────────────────────────────
+  const [createForm, setCreateForm] = useState({
+    name: "", email: "", phone: "", password: "", password_confirmation: "",
+  });
+  const [createErrors, setCreateErrors] = useState({});
+  const [creating,     setCreating]     = useState(false);
 
   // ── Fetch users whenever search/filter/page changes ──────────────
   const fetchUsers = useCallback(async (page = 1) => {
@@ -53,6 +70,14 @@ export default function AdminUsers() {
     const timer = setTimeout(() => fetchUsers(1), 400);
     return () => clearTimeout(timer);
   }, [fetchUsers]);
+
+  // Auto-open the Create admin modal when arriving via a Quick Action
+  useEffect(() => {
+    if (location.state?.openCreate && window.bootstrap) {
+      const modalEl = document.getElementById("createAdminModal");
+      if (modalEl) window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+  }, [location.state]);
 
   const flash = (msg) => {
     setSuccessMsg(msg);
@@ -92,6 +117,78 @@ export default function AdminUsers() {
     }
   };
 
+  // ── Reset password ────────────────────────────────────────────────
+  const resetPassword = async (user) => {
+    const confirmed = window.confirm(
+      `Reset this user's password back to the system default (${DEFAULT_PASSWORD})?`
+    );
+    if (!confirmed) return;
+
+    setUpdatingId(user.user_id);
+    try {
+      const data = await apiRequest(`/admin/users/${user.user_id}/reset-password`, "POST");
+      flash(
+        <>
+          Password reset successfully.
+          <br />
+          Default password: <strong>{data.data.default_password}</strong>
+        </>
+      );
+    } catch (err) {
+      setError(err.message || "Failed to reset password.");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  // ── Create admin ──────────────────────────────────────────────────
+  const handleCreateChange = (e) => {
+    const { name, value } = e.target;
+    setCreateForm((p) => ({ ...p, [name]: value }));
+    if (createErrors[name]) setCreateErrors((p) => ({ ...p, [name]: "" }));
+  };
+
+  const validateCreate = () => {
+    const errs = {};
+    if (!createForm.name.trim())  errs.name  = "Full name is required";
+    if (!createForm.email)        errs.email = "Email address is required";
+    else if (!/\S+@\S+\.\S+/.test(createForm.email)) errs.email = "Enter a valid email address";
+    if (!createForm.phone.trim()) errs.phone = "Phone number is required";
+    if (!createForm.password || createForm.password.length < 8)
+      errs.password = "Password must be at least 8 characters";
+    if (createForm.password !== createForm.password_confirmation)
+      errs.password_confirmation = "Passwords do not match";
+    setCreateErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleCreateAdmin = async (e) => {
+    e.preventDefault();
+    if (!validateCreate()) return;
+    setCreating(true);
+    try {
+      await apiRequest("/admin/users/create", "POST", createForm);
+      setCreateForm({ name: "", email: "", phone: "", password: "", password_confirmation: "" });
+      setCreateErrors({});
+      document.getElementById("createAdminModalClose")?.click();
+      flash("Administrator created successfully.");
+      fetchUsers(1);
+    } catch (err) {
+      if (err.errors) {
+        const mapped = {};
+        if (err.errors.name)     mapped.name     = err.errors.name[0];
+        if (err.errors.email)    mapped.email    = err.errors.email[0];
+        if (err.errors.phone)    mapped.phone    = err.errors.phone[0];
+        if (err.errors.password) mapped.password = err.errors.password[0];
+        setCreateErrors(mapped);
+      } else {
+        setCreateErrors({ general: err.message || "Failed to create administrator." });
+      }
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const roleBadge = { buyer: "badge-confirmed", seller: "badge-delivered" };
   const roleLabel = { buyer: "Buyer",           seller: "Farmer"          };
 
@@ -103,6 +200,14 @@ export default function AdminUsers() {
           <i className="bi bi-check-circle-fill"></i> {successMsg}
         </div>
       )}
+
+      {/* Create admin button */}
+      <div className="mb-3 d-flex justify-content-end">
+        <button className="btn btn-success btn-sm d-flex align-items-center gap-2"
+          data-bs-toggle="modal" data-bs-target="#createAdminModal">
+          <i className="bi bi-person-plus"></i> Create admin
+        </button>
+      </div>
 
       {/* Search + filter row */}
       <div className="row g-2 mb-4">
@@ -131,6 +236,70 @@ export default function AdminUsers() {
         </div>
         <div className="col-12 col-md-2 text-muted small d-flex align-items-center justify-content-end">
           {pagination.total} user{pagination.total !== 1 ? "s" : ""}
+        </div>
+      </div>
+
+      {/* Create admin modal */}
+      <div className="modal fade" id="createAdminModal" tabIndex="-1" aria-hidden="true">
+        <div className="modal-dialog">
+          <div className="modal-content">
+            <form onSubmit={handleCreateAdmin} noValidate>
+              <div className="modal-header">
+                <h5 className="modal-title fw-bold">Create administrator</h5>
+                <button id="createAdminModalClose" type="button" className="btn-close"
+                  data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div className="modal-body">
+                {createErrors.general && (
+                  <div className="alert alert-danger py-2 small">{createErrors.general}</div>
+                )}
+                <div className="mb-3">
+                  <label className="form-label fw-semibold small">Full name</label>
+                  <input name="name" type="text"
+                    className={`form-control ${createErrors.name ? "is-invalid" : ""}`}
+                    value={createForm.name} onChange={handleCreateChange} />
+                  {createErrors.name && <div className="invalid-feedback">{createErrors.name}</div>}
+                </div>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold small">Email address</label>
+                  <input name="email" type="email"
+                    className={`form-control ${createErrors.email ? "is-invalid" : ""}`}
+                    value={createForm.email} onChange={handleCreateChange} />
+                  {createErrors.email && <div className="invalid-feedback">{createErrors.email}</div>}
+                </div>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold small">Phone number</label>
+                  <input name="phone" type="tel"
+                    className={`form-control ${createErrors.phone ? "is-invalid" : ""}`}
+                    placeholder="0712 345 678"
+                    value={createForm.phone} onChange={handleCreateChange} />
+                  {createErrors.phone && <div className="invalid-feedback">{createErrors.phone}</div>}
+                </div>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold small">Password</label>
+                  <input name="password" type="password"
+                    className={`form-control ${createErrors.password ? "is-invalid" : ""}`}
+                    value={createForm.password} onChange={handleCreateChange} />
+                  {createErrors.password && <div className="invalid-feedback">{createErrors.password}</div>}
+                </div>
+                <div className="mb-1">
+                  <label className="form-label fw-semibold small">Confirm password</label>
+                  <input name="password_confirmation" type="password"
+                    className={`form-control ${createErrors.password_confirmation ? "is-invalid" : ""}`}
+                    value={createForm.password_confirmation} onChange={handleCreateChange} />
+                  {createErrors.password_confirmation && <div className="invalid-feedback">{createErrors.password_confirmation}</div>}
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" className="btn btn-success" disabled={creating}>
+                  {creating
+                    ? <><span className="spinner-border spinner-border-sm me-2"></span>Creating…</>
+                    : "Create admin"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
 
@@ -233,6 +402,16 @@ export default function AdminUsers() {
                       {/* Action buttons */}
                       <td>
                         <div className="d-flex gap-1 flex-wrap">
+                          {/* View farmer profile */}
+                          {user.role === "seller" && (
+                            <button
+                              className="btn btn-sm btn-outline-secondary"
+                              style={{ fontSize: "0.72rem" }}
+                              onClick={() => navigate(`/admin/farmers/${user.user_id}`)}>
+                              View
+                            </button>
+                          )}
+
                           {/* Verify button — unverified farmers only */}
                           {user.role === "seller" && !user.is_verified && (
                             <button
@@ -253,6 +432,15 @@ export default function AdminUsers() {
                             {updatingId === user.user_id
                               ? "…"
                               : user.status === "active" ? "Suspend" : "Activate"}
+                          </button>
+
+                          {/* Reset password */}
+                          <button
+                            className="btn btn-sm btn-warning"
+                            style={{ fontSize: "0.72rem" }}
+                            onClick={() => resetPassword(user)}
+                            disabled={updatingId === user.user_id}>
+                            {updatingId === user.user_id ? "…" : "Reset Password"}
                           </button>
                         </div>
                       </td>

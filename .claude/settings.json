@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm init *)",
+      "Bash(npm install *)",
+      "Bash(npx playwright *)",
+      "Bash(node test_create_admin.js \"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiaWF0IjoxNzgyOTQyODIxLCJleHAiOjE3ODI5NDY0MjEsIm5iZiI6MTc4Mjk0MjgyMSwianRpIjoiYTFQaGZTYVZFQ3c0cHdDOSIsInN1YiI6IjEiLCJwcnYiOiIyM2JkNWM4OTQ5ZjYwMGFkYjM5ZTcwMWM0MDA4NzJkYjdhNTk3NmY3Iiwicm9sZSI6ImFkbWluIiwibmFtZSI6IkFkbWluIFNva29Nb2phIn0.KTjol0y8iCLJJqD3rmH9K6X8xEiCUa8A0Nj07lCjsOM\" '{\"user_id\":1,\"name\":\"Admin SokoMoja\",\"email\":\"admin@sokomoja.co.ke\",\"role\":\"admin\"}')",
+      "Bash(curl -s https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js -o /tmp/bs-bundle.js)",
+      "Bash(openssl dgst *)",
+      "Bash(openssl base64 *)",
+      "Bash(pkill -f \"artisan serve\")",
+      "Bash(pkill -f \"vite --port 5173\")",
+      "Bash(lsof -iTCP -sTCP:LISTEN -P)",
+      "Bash(lsof -iTCP:8000 -sTCP:LISTEN -P)",
+      "Bash(kill 29851 29864 29865)",
+      "Bash(sed -i \"s#http://localhost:5173#http://localhost:5173#g\" test_create_admin.js)",
+      "Bash(node test_create_admin.js \"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiaWF0IjoxNzgyOTQzNDk5LCJleHAiOjE3ODI5NDcwOTksIm5iZiI6MTc4Mjk0MzQ5OSwianRpIjoia2VsNkJ3YVVJMmtmbGZhNyIsInN1YiI6IjEiLCJwcnYiOiIyM2JkNWM4OTQ5ZjYwMGFkYjM5ZTcwMWM0MDA4NzJkYjdhNTk3NmY3Iiwicm9sZSI6ImFkbWluIiwibmFtZSI6IkFkbWluIFNva29Nb2phIn0.6Tsc7yfqB9M_cM4qFyrNzDMXSYhR_RVMkiX1QVv03rA\" '{\"user_id\":1,\"name\":\"Admin SokoMoja\",\"email\":\"admin@sokomoja.co.ke\",\"role\":\"admin\"}')",
+      "Bash(curl -s -i -X OPTIONS http://127.0.0.1:8000/api/admin/users/create -H 'Origin: http://localhost:5173' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: authorization,content-type')",
+      "Bash(node audit_admin_module.js \"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiaWF0IjoxNzgyOTQzNjQ4LCJleHAiOjE3ODI5NDcyNDgsIm5iZiI6MTc4Mjk0MzY0OCwianRpIjoiUHJFcnExRzkxM3pGNE8xNyIsInN1YiI6IjEiLCJwcnYiOiIyM2JkNWM4OTQ5ZjYwMGFkYjM5ZTcwMWM0MDA4NzJkYjdhNTk3NmY3Iiwicm9sZSI6ImFkbWluIiwibmFtZSI6IkFkbWluIFNva29Nb2phIn0.SVbHk88vAikeJlLG8pCCYSqG2YRBayxzqQ8xb_HpEiQ\" '{\"user_id\":1,\"name\":\"Admin SokoMoja\",\"email\":\"admin@sokomoja.co.ke\",\"role\":\"admin\"}')",
+      "Bash(node audit_part2.js \"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiaWF0IjoxNzgyOTQzNjQ4LCJleHAiOjE3ODI5NDcyNDgsIm5iZiI6MTc4Mjk0MzY0OCwianRpIjoiUHJFcnExRzkxM3pGNE8xNyIsInN1YiI6IjEiLCJwcnYiOiIyM2JkNWM4OTQ5ZjYwMGFkYjM5ZTcwMWM0MDA4NzJkYjdhNTk3NmY3Iiwicm9sZSI6ImFkbWluIiwibmFtZSI6IkFkbWluIFNva29Nb2phIn0.SVbHk88vAikeJlLG8pCCYSqG2YRBayxzqQ8xb_HpEiQ\" '{\"user_id\":1,\"name\":\"Admin SokoMoja\",\"email\":\"admin@sokomoja.co.ke\",\"role\":\"admin\"}')",
+      "Bash(php -l app/Http/Controllers/Api/AuthController.php)",
+      "Bash(php -l app/Http/Controllers/Api/AdminUserController.php)",
+      "Bash(php -l routes/api.php)",
+      "Bash(php -l config/sokomoja.php)",
+      "Bash(curl -s -o /dev/null -w \"backend: %{http_code}\\\\n\" http://127.0.0.1:8000/api/pickup-zones)",
+      "Bash(curl -s -o /dev/null -w \"frontend: %{http_code}\\\\n\" http://127.0.0.1:5173/)",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" -X POST http://127.0.0.1:8000/api/auth/login -H \"Content-Type: application/json\" -H \"Accept: application/json\" -d '{\"email\":\"doesnotexist@nowhere.test\",\"password\":\"whatever123\"}')",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" -X POST http://127.0.0.1:8000/api/auth/login -H \"Content-Type: application/json\" -H \"Accept: application/json\" -d '{\"email\":\"qa_valid@sokomoja.test\",\"password\":\"WrongPassword1\"}')",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" -X POST http://127.0.0.1:8000/api/auth/login -H \"Content-Type: application/json\" -H \"Accept: application/json\" -d '{\"email\":\"qa_suspended@sokomoja.test\",\"password\":\"TestPass123\"}')",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" -X POST http://127.0.0.1:8000/api/auth/login -H \"Content-Type: application/json\" -H \"Accept: application/json\" -d '{\"email\":\"qa_unverified@sokomoja.test\",\"password\":\"TestPass123\"}')",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" -X POST http://127.0.0.1:8000/api/auth/login -H \"Content-Type: application/json\" -H \"Accept: application/json\" -d '{\"email\":\"qa_valid@sokomoja.test\",\"password\":\"TestPass123\"}')",
+      "Bash(node audit_auth_flow.js)",
+      "Bash(git stash *)",
+      "Bash(node test_reload_detection.js)"
+    ]
+  }
+}

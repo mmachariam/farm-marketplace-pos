@@ -47,7 +47,12 @@ export default function LoginPage() {
       setToken(data.token);
       setUser(data.user);
 
-      // Redirect based on role returned from backend
+      // Return to where the user came from (e.g. the public marketplace),
+      // otherwise redirect based on role returned from backend
+      if (returnTo) {
+        navigate(returnTo);
+        return;
+      }
       const role = data.user.role;
       if (role === "admin")  navigate("/admin/overview");
       else if (role === "seller") navigate("/seller/dashboard");
@@ -57,7 +62,8 @@ export default function LoginPage() {
       // Show field-level errors if Laravel returned them
       if (err.errors?.email)    setErrors((p) => ({ ...p, email:    err.errors.email[0] }));
       if (err.errors?.password) setErrors((p) => ({ ...p, password: err.errors.password[0] }));
-      if (!err.errors)          setGeneralError(err.message || "Invalid email or password.");
+      if (!err.errors || Object.keys(err.errors).length === 0)
+        setGeneralError(err.message || "Invalid email or password.");
     } finally {
       setLoading(false);
     }

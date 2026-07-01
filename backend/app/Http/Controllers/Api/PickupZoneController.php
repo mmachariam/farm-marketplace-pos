@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\PickupZone;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -81,6 +82,69 @@ class PickupZoneController extends Controller
                 'region'         => $z->region,
                 'farmer_count'   => $z->farmer_count,
             ]),
+        ]);
+    }
+
+    // ── PATCH /api/admin/zones/{id} ──────────────────────────────────
+    // Admin only — update a pickup zone
+    public function update(Request $request, $id)
+    {
+        $zone = PickupZone::find($id);
+
+        if (!$zone) {
+            return response()->json(['message' => 'Pickup zone not found'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'zone_name'      => 'sometimes|string|max:100|unique:pickup_zones,zone_name,' . $zone->zone_id . ',zone_id',
+            'pickup_address' => 'sometimes|string|max:255',
+            'region'         => 'sometimes|string|max:100',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors'  => $validator->errors(),
+            ], 422);
+        }
+
+        $zone->fill($request->only(['zone_name', 'pickup_address', 'region']));
+        $zone->save();
+
+        return response()->json([
+            'message' => 'Pickup zone updated successfully',
+            'data'    => [
+                'zone_id'        => $zone->zone_id,
+                'zone_name'      => $zone->zone_name,
+                'pickup_address' => $zone->pickup_address,
+                'region'         => $zone->region,
+            ],
+        ]);
+    }
+
+    // ── DELETE /api/admin/zones/{id} ─────────────────────────────────
+    // Admin only — delete a pickup zone, unless still referenced
+    public function destroy($id)
+    {
+        $zone = PickupZone::find($id);
+
+        if (!$zone) {
+            return response()->json(['message' => 'Pickup zone not found'], 404);
+        }
+
+        $hasFarmers  = $zone->farmers()->exists();
+        $hasProducts = Product::where('zone_id', $zone->zone_id)->exists();
+
+        if ($hasFarmers || $hasProducts) {
+            return response()->json([
+                'message' => 'Cannot delete zone. Reassign farmers first.',
+            ], 422);
+        }
+
+        $zone->delete();
+
+        return response()->json([
+            'message' => 'Pickup zone deleted successfully',
         ]);
     }
 }

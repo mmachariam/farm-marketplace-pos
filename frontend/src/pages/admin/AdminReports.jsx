@@ -14,6 +14,7 @@ function AdminReports() {
     { label: "Users",     icon: "bi-people",            path: "/admin/users",     active: false },
     { label: "Zones",     icon: "bi-geo-alt",           path: "/admin/zones",     active: false },
     { label: "Reports",   icon: "bi-file-earmark-text", path: "/admin/reports",   active: true  },
+    { label: "Profile",   icon: "bi-person-circle",     path: "/admin/profile",   active: false },
   ];
 
   const [reports,     setReports]     = useState([]);

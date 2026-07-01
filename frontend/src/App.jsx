@@ -36,6 +36,8 @@ import AdminOverview      from "./pages/admin/AdminOverview";
 import AdminUsers         from "./pages/admin/AdminUsers";
 import AdminZones         from "./pages/admin/AdminZones";
 import AdminReports       from "./pages/admin/AdminReports";
+import AdminProfile       from "./pages/admin/AdminProfile";
+import AdminFarmerDetail  from "./pages/admin/AdminFarmerDetail";
 
 import "./styles/index.css";
 
@@ -107,6 +109,12 @@ export default function App() {
           }/>
           <Route path="/admin/reports" element={
             <ProtectedRoute allowedRoles={["admin"]}><AdminReports /></ProtectedRoute>
+          }/>
+          <Route path="/admin/profile" element={
+            <ProtectedRoute allowedRoles={["admin"]}><AdminProfile /></ProtectedRoute>
+          }/>
+          <Route path="/admin/farmers/:farmerId" element={
+            <ProtectedRoute allowedRoles={["admin"]}><AdminFarmerDetail /></ProtectedRoute>
           }/>
 
           {/* ── 404 — must be last ─────────────────────────────── */}

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
 class AdminUserController extends Controller
@@ -99,6 +100,25 @@ class AdminUserController extends Controller
         return response()->json([
             'message' => "{$user->name} has been verified as a farmer",
             'data'    => $this->formatUser($user),
+        ]);
+    }
+
+    // ── POST /api/admin/users/{id}/reset-password ────────────────────
+    // Reset a user's password back to the system default
+    public function resetPassword($id)
+    {
+        $user = User::findOrFail($id);
+
+        $defaultPassword = config('sokomoja.default_user_password');
+
+        $user->password = Hash::make($defaultPassword);
+        $user->save();
+
+        return response()->json([
+            'message' => 'Password has been reset successfully.',
+            'data'    => [
+                'default_password' => $defaultPassword,
+            ],
         ]);
     }
 

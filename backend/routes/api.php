@@ -23,6 +23,8 @@ use App\Http\Controllers\Api\SellerScheduleController;
 use App\Http\Controllers\Api\SellerSummaryController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\AdminReportController;
+use App\Http\Controllers\Api\AdminProfileController;
+use App\Http\Controllers\Api\AdminFarmerController;
 
 // ── Auth (public — no token needed) ─────────────────────────────────
 Route::prefix('auth')->group(function () {
@@ -114,6 +116,7 @@ Route::middleware(['auth:api', 'role:admin'])->prefix('admin')->group(function (
     Route::get('users',                    [AdminUserController::class, 'index']);
     Route::patch('users/{id}',             [AdminUserController::class, 'updateStatus']);
     Route::patch('users/{id}/verify',      [AdminUserController::class, 'verify']);
+    Route::post('users/{id}/reset-password', [AdminUserController::class, 'resetPassword']);
 
     // Zones management
     Route::get('zones',                    [PickupZoneController::class, 'adminIndex']);
@@ -123,6 +126,23 @@ Route::middleware(['auth:api', 'role:admin'])->prefix('admin')->group(function (
     Route::get('overview',                 [AdminReportController::class, 'overview']);
     Route::get('reports',                  [AdminReportController::class, 'index']);
     Route::post('reports',                 [AdminReportController::class, 'store']);
+
+    // Admin profile
+    Route::get('profile',                  [AdminProfileController::class, 'show']);
+    Route::patch('profile',                [AdminProfileController::class, 'update']);
+    Route::post('profile/avatar',          [AdminProfileController::class, 'uploadAvatar']);
+    Route::post('profile/password',        [AdminProfileController::class, 'updatePassword']);
+
+    // Create administrator
+    Route::post('users/create',            [AdminProfileController::class, 'createAdmin']);
+
+    // Farmer detail
+    Route::get('farmers/{id}',             [AdminFarmerController::class, 'show']);
+    Route::patch('farmers/{id}/unverify',  [AdminFarmerController::class, 'unverify']);
+
+    // Zones — update/delete
+    Route::patch('zones/{id}',             [PickupZoneController::class, 'update']);
+    Route::delete('zones/{id}',            [PickupZoneController::class, 'destroy']);
 
 });
 

@@ -49,8 +49,10 @@ export async function apiRequest(endpoint, method = "GET", body = null) {
     error.errors  = data?.errors || {}; // field-level validation errors
     error.status  = response.status;
 
-    // Auto-logout on token expiry
-    if (response.status === 401) {
+    // Auto-logout on token expiry — only when a token was actually sent.
+    // (Anonymous requests like /auth/login also return 401 for bad
+    // credentials; that must not trigger a logout/redirect.)
+    if (response.status === 401 && token) {
       logout();
     }
 

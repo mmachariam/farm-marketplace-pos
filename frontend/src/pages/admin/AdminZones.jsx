@@ -11,21 +11,25 @@
 // ===========================================
 
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
 import { apiRequest } from "../../utils/api";
 
 export default function AdminZones() {
+  const location = useLocation();
+
   const navItems = [
     { label: "Overview",  icon: "bi-grid-1x2",          path: "/admin/overview",  active: false },
     { label: "Users",     icon: "bi-people",            path: "/admin/users",     active: false },
     { label: "Zones",     icon: "bi-geo-alt",           path: "/admin/zones",     active: true  },
     { label: "Reports",   icon: "bi-file-earmark-text", path: "/admin/reports",   active: false },
+    { label: "Profile",   icon: "bi-person-circle",     path: "/admin/profile",   active: false },
   ];
 
   const [zones,      setZones]      = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState("");
-  const [showForm,   setShowForm]   = useState(false);
+  const [showForm,   setShowForm]   = useState(!!location.state?.openForm);
   const [saving,     setSaving]     = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
 
@@ -35,6 +39,14 @@ export default function AdminZones() {
     pickupAddress: "",
   });
   const [formErrors, setFormErrors] = useState({});
+
+  // ── Inline edit / delete ──────────────────────────────────────────
+  const [editingId,   setEditingId]   = useState(null);
+  const [editForm,    setEditForm]    = useState({ zoneName: "", region: "", pickupAddress: "" });
+  const [editErrors,  setEditErrors]  = useState({});
+  const [editSaving,  setEditSaving]  = useState(false);
+  const [deletingId,  setDeletingId]  = useState(null);
+  const [zoneErrors,  setZoneErrors]  = useState({}); // per-zone delete/edit errors, keyed by zone_id
 
   // ── Load zones on mount ───────────────────────────────────────────
   useEffect(() => {
@@ -99,6 +111,85 @@ export default function AdminZones() {
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  // ── Inline edit ────────────────────────────────────────────────────
+  const startEdit = (zone) => {
+    setEditingId(zone.zone_id);
+    setEditForm({
+      zoneName:      zone.zone_name,
+      region:        zone.region,
+      pickupAddress: zone.pickup_address,
+    });
+    setEditErrors({});
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditErrors({});
+  };
+
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditForm((p) => ({ ...p, [name]: value }));
+    if (editErrors[name]) setEditErrors((p) => ({ ...p, [name]: "" }));
+  };
+
+  const validateEdit = () => {
+    const errs = {};
+    if (!editForm.zoneName.trim())      errs.zoneName      = "Zone name is required";
+    if (!editForm.region.trim())        errs.region        = "Region is required";
+    if (!editForm.pickupAddress.trim()) errs.pickupAddress = "Pickup address is required";
+    setEditErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleSaveEdit = async (zoneId) => {
+    if (!validateEdit()) return;
+    setEditSaving(true);
+    try {
+      const data = await apiRequest(`/admin/zones/${zoneId}`, "PATCH", {
+        zone_name:      editForm.zoneName,
+        region:         editForm.region,
+        pickup_address: editForm.pickupAddress,
+      });
+
+      setZones((prev) => prev.map((z) => z.zone_id === zoneId ? { ...z, ...data.data } : z));
+      setEditingId(null);
+      setSuccessMsg("Pickup zone updated successfully.");
+      setTimeout(() => setSuccessMsg(""), 3500);
+
+    } catch (err) {
+      if (err.errors) {
+        const mapped = {};
+        if (err.errors.zone_name)      mapped.zoneName      = err.errors.zone_name[0];
+        if (err.errors.region)         mapped.region        = err.errors.region[0];
+        if (err.errors.pickup_address) mapped.pickupAddress = err.errors.pickup_address[0];
+        setEditErrors(mapped);
+      } else {
+        setZoneErrors((prev) => ({ ...prev, [zoneId]: err.message || "Failed to update zone." }));
+      }
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  // ── Delete ─────────────────────────────────────────────────────────
+  const handleDeleteZone = async (zone) => {
+    if (!window.confirm(`Delete pickup zone "${zone.zone_name}"? This cannot be undone.`)) return;
+
+    setDeletingId(zone.zone_id);
+    setZoneErrors((prev) => ({ ...prev, [zone.zone_id]: "" }));
+    try {
+      await apiRequest(`/admin/zones/${zone.zone_id}`, "DELETE");
+      setZones((prev) => prev.filter((z) => z.zone_id !== zone.zone_id));
+      setSuccessMsg("Pickup zone deleted successfully.");
+      setTimeout(() => setSuccessMsg(""), 3500);
+    } catch (err) {
+      setZoneErrors((prev) => ({ ...prev, [zone.zone_id]: err.message || "Failed to delete zone." }));
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -190,31 +281,92 @@ export default function AdminZones() {
             <div className="col-12 col-md-6 col-lg-4" key={zone.zone_id}>
               <div className="card border-0 shadow-sm h-100">
                 <div className="card-body">
-                  <div className="d-flex align-items-start gap-3">
-                    <div className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                      style={{ width: 42, height: 42, background: "#d1e7dd" }}>
-                      <i className="bi bi-geo-alt-fill text-success"></i>
-                    </div>
+
+                  {editingId === zone.zone_id ? (
+                    // ── Inline edit form ──────────────────────────
                     <div>
-                      <div className="fw-bold mb-1">{zone.zone_name}</div>
-                      <div className="text-muted small mb-1">
-                        <i className="bi bi-building me-1"></i>{zone.pickup_address}
+                      <div className="mb-2">
+                        <label className="form-label small fw-semibold mb-1">Zone name</label>
+                        <input className={`form-control form-control-sm ${editErrors.zoneName ? "is-invalid" : ""}`}
+                          name="zoneName" value={editForm.zoneName} onChange={handleEditChange} />
+                        {editErrors.zoneName && <div className="invalid-feedback">{editErrors.zoneName}</div>}
                       </div>
-                      <div className="d-flex gap-2 flex-wrap mt-2">
-                        <span className="badge bg-success-subtle text-success rounded-pill"
-                          style={{ fontSize: "0.72rem" }}>
-                          {zone.region}
-                        </span>
-                        {zone.farmer_count !== undefined && (
-                          <span className="badge rounded-pill badge-confirmed"
+                      <div className="mb-2">
+                        <label className="form-label small fw-semibold mb-1">Region</label>
+                        <select className={`form-select form-select-sm ${editErrors.region ? "is-invalid" : ""}`}
+                          name="region" value={editForm.region} onChange={handleEditChange}>
+                          <option value="">Select region</option>
+                          {["Kiambu","Nakuru","Meru","Nairobi","Eldoret","Kisumu","Mombasa","Kakamega"].map((r) => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
+                        </select>
+                        {editErrors.region && <div className="invalid-feedback">{editErrors.region}</div>}
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label small fw-semibold mb-1">Pickup address</label>
+                        <input className={`form-control form-control-sm ${editErrors.pickupAddress ? "is-invalid" : ""}`}
+                          name="pickupAddress" value={editForm.pickupAddress} onChange={handleEditChange} />
+                        {editErrors.pickupAddress && <div className="invalid-feedback">{editErrors.pickupAddress}</div>}
+                      </div>
+                      {zoneErrors[zone.zone_id] && (
+                        <div className="alert alert-danger py-1 px-2 small mb-2">{zoneErrors[zone.zone_id]}</div>
+                      )}
+                      <div className="d-flex gap-2">
+                        <button className="btn btn-success btn-sm flex-grow-1"
+                          onClick={() => handleSaveEdit(zone.zone_id)} disabled={editSaving}>
+                          {editSaving ? "Saving…" : "Save"}
+                        </button>
+                        <button className="btn btn-outline-secondary btn-sm flex-grow-1"
+                          onClick={cancelEdit} disabled={editSaving}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    // ── Read-only view ────────────────────────────
+                    <div className="d-flex align-items-start gap-3">
+                      <div className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                        style={{ width: 42, height: 42, background: "#d1e7dd" }}>
+                        <i className="bi bi-geo-alt-fill text-success"></i>
+                      </div>
+                      <div className="flex-grow-1">
+                        <div className="d-flex justify-content-between align-items-start">
+                          <div className="fw-bold mb-1">{zone.zone_name}</div>
+                          <div className="d-flex gap-1">
+                            <button className="btn btn-outline-secondary btn-sm py-0 px-1"
+                              title="Edit zone" onClick={() => startEdit(zone)}>
+                              <i className="bi bi-pencil" style={{ fontSize: "0.75rem" }}></i>
+                            </button>
+                            <button className="btn btn-outline-danger btn-sm py-0 px-1"
+                              title="Delete zone" onClick={() => handleDeleteZone(zone)}
+                              disabled={deletingId === zone.zone_id}>
+                              <i className="bi bi-trash" style={{ fontSize: "0.75rem" }}></i>
+                            </button>
+                          </div>
+                        </div>
+                        <div className="text-muted small mb-1">
+                          <i className="bi bi-building me-1"></i>{zone.pickup_address}
+                        </div>
+                        <div className="d-flex gap-2 flex-wrap mt-2">
+                          <span className="badge bg-success-subtle text-success rounded-pill"
                             style={{ fontSize: "0.72rem" }}>
-                            <i className="bi bi-flower2 me-1"></i>
-                            {zone.farmer_count} farmer{zone.farmer_count !== 1 ? "s" : ""}
+                            {zone.region}
                           </span>
+                          {zone.farmer_count !== undefined && (
+                            <span className="badge rounded-pill badge-confirmed"
+                              style={{ fontSize: "0.72rem" }}>
+                              <i className="bi bi-flower2 me-1"></i>
+                              {zone.farmer_count} farmer{zone.farmer_count !== 1 ? "s" : ""}
+                            </span>
+                          )}
+                        </div>
+                        {zoneErrors[zone.zone_id] && (
+                          <div className="alert alert-danger py-1 px-2 small mt-2 mb-0">{zoneErrors[zone.zone_id]}</div>
                         )}
                       </div>
                     </div>
-                  </div>
+                  )}
+
                 </div>
               </div>
             </div>

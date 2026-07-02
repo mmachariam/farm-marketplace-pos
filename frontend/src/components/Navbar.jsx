@@ -2,11 +2,13 @@
 // Added "Marketplace" link that takes anyone (logged in or not)
 // to the public /marketplace page.
 
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 function Navbar() {
+  const { pathname } = useLocation();
+
   return (
-    <nav className="navbar navbar-expand-lg bg-white border-bottom sticky-top shadow-sm">
+    <nav className="navbar navbar-expand-lg bg-white border-bottom sticky-top shadow-sm" aria-label="Main navigation">
       <div className="container">
 
         {/* Logo */}
@@ -30,14 +32,14 @@ function Navbar() {
         <div className="collapse navbar-collapse" id="mainNav">
           <ul className="navbar-nav me-auto mb-2 mb-lg-0">
             <li className="nav-item">
-              <Link to="/" className="nav-link text-muted">Home</Link>
+              <Link to="/" className="nav-link text-muted" aria-current={pathname === "/" ? "page" : undefined}>Home</Link>
             </li>
             {/* Public marketplace — accessible without login */}
             <li className="nav-item">
               <Link
                 to="/marketplace"
-                className="nav-link fw-semibold d-flex align-items-center gap-1"
-                style={{ color: "#198754" }}
+                className="nav-link fw-semibold text-success d-flex align-items-center gap-1"
+                aria-current={pathname === "/marketplace" ? "page" : undefined}
               >
                 <i className="bi bi-shop"></i> Marketplace
               </Link>

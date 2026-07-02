@@ -2,8 +2,43 @@
 // Wired to GET /api/seller/inventory and PATCH /api/seller/inventory/{id}
 
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
+import Toast from "../../components/Toast";
 import { apiRequest } from "../../utils/api";
+
+function EmptyState({ icon, title, text, btnLabel, btnTo, btnAction }) {
+  return (
+    <div className="sm-empty sm-fade-in">
+      <div className="sm-empty-icon">
+        <i className={`bi ${icon}`}></i>
+      </div>
+      <div className="sm-empty-title">{title}</div>
+      <p className="sm-empty-text">{text}</p>
+      {btnTo && (
+        <Link to={btnTo} className="btn btn-success btn-sm px-4">
+          {btnLabel}
+        </Link>
+      )}
+      {btnAction && (
+        <button className="btn btn-success btn-sm px-4" onClick={btnAction}>
+          {btnLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PageLoader({ text = "Loading..." }) {
+  return (
+    <div className="d-flex flex-column align-items-center justify-content-center py-5 gap-3 sm-fade-in">
+      <div className="spinner-border text-success" role="status" style={{ width: "2rem", height: "2rem" }}>
+        <span className="visually-hidden">Loading...</span>
+      </div>
+      <span className="text-muted small">{text}</span>
+    </div>
+  );
+}
 
 function FarmerInventory() {
   const navItems = [
@@ -23,7 +58,7 @@ function FarmerInventory() {
   const [editQty,     setEditQty]     = useState("");
   const [editThreshold, setEditThreshold] = useState("");
   const [saving,      setSaving]      = useState(false);
-  const [successMsg,  setSuccessMsg]  = useState("");
+  const [toast,       setToast]       = useState(null);
 
   useEffect(() => {
     fetchInventory();
@@ -61,11 +96,10 @@ function FarmerInventory() {
       setInventory((prev) =>
         prev.map((item) => item.inventory_id === inventoryId ? res.data : item)
       );
-      setSuccessMsg("Stock updated successfully.");
+      setToast({ message: "Stock updated successfully.", type: "success" });
       setEditingId(null);
-      setTimeout(() => setSuccessMsg(""), 3000);
     } catch (err) {
-      alert("Failed to update: " + err.message);
+      setToast({ message: "Failed to update: " + err.message, type: "error" });
     } finally {
       setSaving(false);
     }
@@ -82,26 +116,34 @@ function FarmerInventory() {
   return (
     <DashboardLayout title="Inventory" navItems={navItems}>
 
-      {successMsg && <div className="alert alert-success py-2 small mb-3">{successMsg}</div>}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-      {loading && <div className="text-center text-muted py-5">Loading inventory…</div>}
+      {loading && <PageLoader text="Loading inventory..." />}
       {error   && <div className="alert alert-danger">{error}</div>}
 
       {!loading && !error && inventory.length === 0 && (
-        <div className="text-center text-muted py-5">No inventory yet — add your first product.</div>
+        <EmptyState
+          icon="bi-boxes"
+          title="No inventory found"
+          text="Your inventory will appear here once you have active product listings."
+          btnLabel="Add a product"
+          btnTo="/seller/products/add"
+        />
       )}
 
       {!loading && !error && inventory.length > 0 && (
-        <div className="sm-card">
-          <table className="table table-hover mb-0" style={{ fontSize: "0.875rem" }}>
+        <div className="sm-card sm-fade-in">
+          <div className="table-responsive">
+          <table className="table table-hover align-middle mb-0" style={{ fontSize: "0.875rem" }}>
+            <caption className="visually-hidden">Inventory levels</caption>
             <thead className="table-light">
               <tr>
-                <th>Product</th>
-                <th>Category</th>
-                <th>Stock</th>
-                <th>Alert at</th>
-                <th>Status</th>
-                <th>Update</th>
+                <th scope="col">Product</th>
+                <th scope="col">Category</th>
+                <th scope="col">Stock</th>
+                <th scope="col">Alert at</th>
+                <th scope="col">Status</th>
+                <th scope="col">Update</th>
               </tr>
             </thead>
             <tbody>
@@ -159,14 +201,16 @@ function FarmerInventory() {
                       {isEditing ? (
                         <div className="d-flex gap-1">
                           <button
-                            className="btn btn-sm"
-                            style={{ background: "var(--sm-green)", color: "#fff", border: "none" }}
+                            className="btn btn-success btn-sm"
+                            aria-label="Save"
                             onClick={() => handleSave(item.inventory_id)}
                             disabled={saving}
                           >
-                            {saving ? "…" : <i className="bi bi-check"></i>}
+                            {saving
+                              ? <span className="spinner-border spinner-border-sm" role="status"><span className="visually-hidden">Saving...</span></span>
+                              : <i className="bi bi-check"></i>}
                           </button>
-                          <button className="btn btn-sm btn-outline-secondary" onClick={cancelEdit}>
+                          <button className="btn btn-sm btn-outline-secondary" aria-label="Cancel" onClick={cancelEdit}>
                             <i className="bi bi-x"></i>
                           </button>
                         </div>
@@ -184,6 +228,7 @@ function FarmerInventory() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

@@ -74,15 +74,14 @@ export default function LoginPage() {
 
       {/* Banner shown when redirected from public marketplace */}
       {redirectMessage && (
-        <div className="rounded-3 p-3 mb-4 d-flex align-items-start gap-3"
-          style={{ background: "#d1e7dd", border: "1px solid #a3cfbb" }}>
+        <div className="rounded-3 p-3 mb-4 d-flex align-items-start gap-3 bg-success-subtle border border-success-subtle">
           <i className="bi bi-cart3 text-success mt-1 flex-shrink-0" style={{ fontSize: "1.1rem" }}></i>
           <div>
-            <div className="fw-semibold text-success" style={{ fontSize: "0.875rem" }}>Almost there!</div>
-            <div style={{ fontSize: "0.82rem", color: "#0a3622" }}>{redirectMessage}</div>
-            <div className="mt-2" style={{ fontSize: "0.82rem" }}>
+            <div className="fw-semibold text-success small">Almost there!</div>
+            <div className="text-success-emphasis small">{redirectMessage}</div>
+            <div className="mt-2 small">
               No account yet?{" "}
-              <Link to="/register?role=buyer" className="fw-semibold" style={{ color: "#198754" }}>
+              <Link to="/register?role=buyer" className="fw-semibold text-success">
                 Create one free — it only takes a minute
               </Link>
             </div>
@@ -103,7 +102,9 @@ export default function LoginPage() {
 
       <form onSubmit={handleLogin} noValidate>
         <div className="mb-3">
-          <label htmlFor="login-email" className="form-label fw-semibold small">Email address</label>
+          <label htmlFor="login-email" className="form-label fw-semibold small">
+            Email address <span className="text-danger">*</span>
+          </label>
           <input
             id="login-email" type="email"
             className={`form-control ${errors.email ? "is-invalid" : ""}`}
@@ -111,11 +112,17 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors((p) => ({ ...p, email: "" })); }}
           />
-          {errors.email && <div className="invalid-feedback">{errors.email}</div>}
+          {errors.email && (
+            <div className="invalid-feedback d-block">
+              <i className="bi bi-exclamation-circle me-1"></i>{errors.email}
+            </div>
+          )}
         </div>
 
         <div className="mb-3">
-          <label htmlFor="login-password" className="form-label fw-semibold small">Password</label>
+          <label htmlFor="login-password" className="form-label fw-semibold small">
+            Password <span className="text-danger">*</span>
+          </label>
           <div className="input-group">
             <input
               id="login-password"
@@ -125,11 +132,15 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors((p) => ({ ...p, password: "" })); }}
             />
-            <button type="button" className="btn btn-outline-secondary"
+            <button type="button" className="btn btn-outline-secondary" aria-label={showPass ? "Hide password" : "Show password"}
               onClick={() => setShowPass(!showPass)}>
               <i className={`bi bi-${showPass ? "eye-slash" : "eye"}`}></i>
             </button>
-            {errors.password && <div className="invalid-feedback">{errors.password}</div>}
+            {errors.password && (
+              <div className="invalid-feedback d-block">
+                <i className="bi bi-exclamation-circle me-1"></i>{errors.password}
+              </div>
+            )}
           </div>
         </div>
 
@@ -141,8 +152,7 @@ export default function LoginPage() {
               Remember me
             </label>
           </div>
-          <Link to="/forgot-password"
-            style={{ fontSize: "0.82rem", color: "#198754", textDecoration: "none" }}>
+          <Link to="/forgot-password" className="small text-success text-decoration-none">
             Forgot password?
           </Link>
         </div>
@@ -171,9 +181,9 @@ export default function LoginPage() {
         Continue with Google
       </button>
 
-      <p className="text-center text-muted" style={{ fontSize: "0.875rem" }}>
+      <p className="text-center text-muted small">
         New to SokoMoja?{" "}
-        <Link to="/register" style={{ color: "#198754", fontWeight: 600 }}>Create a free account</Link>
+        <Link to="/register" className="text-success fw-semibold">Create a free account</Link>
       </p>
     </AuthLayout>
   );

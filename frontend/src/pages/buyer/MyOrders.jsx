@@ -8,6 +8,39 @@ import DashboardLayout from "../../components/DashboardLayout";
 import PaginationBar from "../../components/PaginationBar";
 import { apiRequest } from "../../utils/api";
 
+function EmptyState({ icon, title, text, btnLabel, btnTo, btnAction }) {
+  return (
+    <div className="sm-empty sm-fade-in">
+      <div className="sm-empty-icon">
+        <i className={`bi ${icon}`}></i>
+      </div>
+      <div className="sm-empty-title">{title}</div>
+      <p className="sm-empty-text">{text}</p>
+      {btnTo && (
+        <Link to={btnTo} className="btn btn-success btn-sm px-4">
+          {btnLabel}
+        </Link>
+      )}
+      {btnAction && (
+        <button className="btn btn-success btn-sm px-4" onClick={btnAction}>
+          {btnLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PageLoader({ text = "Loading..." }) {
+  return (
+    <div className="d-flex flex-column align-items-center justify-content-center py-5 gap-3 sm-fade-in">
+      <div className="spinner-border text-success" role="status" style={{ width: "2rem", height: "2rem" }}>
+        <span className="visually-hidden">Loading...</span>
+      </div>
+      <span className="text-muted small">{text}</span>
+    </div>
+  );
+}
+
 function MyOrders() {
   const navItems = [
     { label: "Browse",    icon: "bi-shop",          path: "/buyer/dashboard", active: false },
@@ -67,10 +100,10 @@ function MyOrders() {
     Cancelled: "badge-cancelled",
   };
 
-  const paymentColor = {
-    Completed: "#27500A",
-    Failed:    "#791F1F",
-    Pending:   "#444441",
+  const paymentTextClass = {
+    Completed: "text-success",
+    Failed:    "text-danger",
+    Pending:   "text-muted",
   };
 
   return (
@@ -90,32 +123,20 @@ function MyOrders() {
       </div>
 
       {/* Loading */}
-      {loading && (
-        <div className="text-center py-5">
-          <div className="spinner-border text-success" role="status"></div>
-          <div className="text-muted small mt-2">Loading orders…</div>
-        </div>
-      )}
+      {loading && <PageLoader text="Loading your orders..." />}
 
       {/* Error */}
       {error && <div className="alert alert-danger">{error}</div>}
 
       {/* Empty state */}
       {!loading && !error && orders.length === 0 && (
-        <div className="text-center py-5">
-          <div
-            className="rounded-circle bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3"
-            style={{ width: 72, height: 72 }}
-          >
-            <i className="bi bi-box-seam text-success" style={{ fontSize: "1.8rem" }}></i>
-          </div>
-          <h6 className="fw-semibold mb-1">No orders found</h6>
-          <p className="text-muted small mb-0">
-            {statusFilter
-              ? `No ${statusFilter.toLowerCase()} orders. Try a different filter.`
-              : "You haven't placed any orders yet. Browse the marketplace to get started."}
-          </p>
-        </div>
+        <EmptyState
+          icon="bi-bag"
+          title="No orders yet"
+          text="You haven't placed any orders yet. Browse fresh produce and place your first order."
+          btnLabel="Browse produce"
+          btnTo="/buyer/dashboard"
+        />
       )}
 
       {/* Order cards */}
@@ -142,17 +163,16 @@ function MyOrders() {
                 <div className="text-muted small mb-1">
                   {date} · {zone} · KES {Number(order.total_amount).toFixed(2)}
                 </div>
-                <div className="mb-2" style={{ fontSize: "0.875rem" }}>
+                <div className="mb-2 small">
                   {summariseItems(order.items)}
                 </div>
                 <div className="d-flex justify-content-between align-items-center">
-                  <span className="small" style={{ color: paymentColor[payStatus] ?? "#444441" }}>
+                  <span className={`small ${paymentTextClass[payStatus] ?? "text-muted"}`}>
                     Payment: {payStatus}
                   </span>
                   <Link
                     to={`/buyer/orders/${order.order_id}`}
                     className="btn btn-sm btn-outline-secondary"
-                    style={{ fontSize: "0.78rem" }}
                   >
                     <i className="bi bi-eye me-1"></i>Track order
                   </Link>

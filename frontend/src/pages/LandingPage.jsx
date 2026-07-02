@@ -67,12 +67,12 @@ export default function LandingPage() {
           </div>
 
           {/* Featured product cards */}
-          <div className="row g-3 mb-4">
+          <div className="row g-3 mb-4 sm-fade-in">
             {featuredProducts.map((p) => (
-              <div key={p.product_id} className="col-sm-6 col-lg-3">
-                <div className="card border-0 shadow-sm h-100 product-card">
+              <div key={p.product_id} className="col-12 col-sm-6 col-md-4 col-lg-3">
+                <div className="sm-product-card h-100">
                   {/* Image */}
-                  <div className="position-relative bg-light" style={{ height: 160, overflow: "hidden" }}>
+                  <div className="sm-product-img position-relative" style={{ height: 160 }}>
                     {p.image_url ? (
                       <img
                         src={p.image_url}
@@ -124,11 +124,10 @@ export default function LandingPage() {
 
           {/* Bottom CTA bar */}
           <div
-            className="rounded-4 p-4 d-flex flex-wrap align-items-center justify-content-between gap-3"
-            style={{ background: "#d1e7dd", border: "1px solid #a3cfbb" }}
+            className="rounded-4 p-4 d-flex flex-wrap align-items-center justify-content-between gap-3 bg-success-subtle border border-success-subtle"
           >
             <div>
-              <div className="fw-bold" style={{ color: "#0a3622" }}>
+              <div className="fw-bold text-success-emphasis">
                 <i className="bi bi-basket2 me-2 text-success"></i>
                 12 products available from verified farmers
               </div>

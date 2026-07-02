@@ -43,7 +43,7 @@ function HowItWorks() {
 
         <div className="row g-3 mb-5">
           {steps.map((step, i) => (
-            <div className="col-sm-6 col-lg-3" key={i}>
+            <div className="col-12 col-sm-6 col-lg-3" key={i}>
               <div className="p-3 rounded-3 h-100" style={{ background: "var(--sm-bg)" }}>
                 <div className="sm-how-icon">
                   <i className={`bi ${step.icon}`}></i>
@@ -59,14 +59,14 @@ function HowItWorks() {
         <div className="rounded-3 p-4" style={{ background: "var(--sm-green-light)", border: "1px solid var(--sm-green-border)" }}>
           <div className="d-flex align-items-center gap-2 mb-3">
             <i className="bi bi-flower2 text-success fs-5"></i>
-            <span className="fw-bold" style={{ color: "#173404" }}>For farmers — all the tools you need</span>
+            <span className="fw-bold text-success-emphasis">For farmers — all the tools you need</span>
           </div>
           <div className="row g-2">
             {farmerFeatures.map((f, i) => (
-              <div className="col-sm-6" key={i}>
+              <div className="col-12 col-sm-6" key={i}>
                 <div className="d-flex align-items-start gap-2">
-                  <i className={`bi ${f.icon} mt-1`} style={{ color: "var(--sm-green)", flexShrink: 0 }}></i>
-                  <span style={{ fontSize: "0.85rem", color: "#3B6D11" }}>{f.text}</span>
+                  <i className={`bi ${f.icon} mt-1 text-success`} style={{ flexShrink: 0 }}></i>
+                  <span className="small text-success-emphasis">{f.text}</span>
                 </div>
               </div>
             ))}

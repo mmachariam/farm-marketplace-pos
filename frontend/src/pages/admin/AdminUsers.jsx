@@ -5,15 +5,49 @@
 // PATCH  /api/admin/users/{id}/verify  (verify farmer)
 
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
 import PaginationBar from "../../components/PaginationBar";
+import Toast from "../../components/Toast";
 import { apiRequest } from "../../utils/api";
 
 // Display-only copy of the backend's DEFAULT_USER_PASSWORD (config/sokomoja.php),
 // needed here only for the confirmation prompt text below — the actual reset
 // always uses the value returned by the backend response.
 const DEFAULT_PASSWORD = "SokoMoja2026!";
+
+function EmptyState({ icon, title, text, btnLabel, btnTo, btnAction }) {
+  return (
+    <div className="sm-empty sm-fade-in">
+      <div className="sm-empty-icon">
+        <i className={`bi ${icon}`}></i>
+      </div>
+      <div className="sm-empty-title">{title}</div>
+      <p className="sm-empty-text">{text}</p>
+      {btnTo && (
+        <Link to={btnTo} className="btn btn-success btn-sm px-4">
+          {btnLabel}
+        </Link>
+      )}
+      {btnAction && (
+        <button className="btn btn-success btn-sm px-4" onClick={btnAction}>
+          {btnLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PageLoader({ text = "Loading..." }) {
+  return (
+    <div className="d-flex flex-column align-items-center justify-content-center py-5 gap-3 sm-fade-in">
+      <div className="spinner-border text-success" role="status" style={{ width: "2rem", height: "2rem" }}>
+        <span className="visually-hidden">Loading...</span>
+      </div>
+      <span className="text-muted small">{text}</span>
+    </div>
+  );
+}
 
 export default function AdminUsers() {
   const navigate = useNavigate();
@@ -33,7 +67,7 @@ export default function AdminUsers() {
   const [searchTerm,  setSearchTerm]  = useState("");
   const [roleFilter,  setRoleFilter]  = useState(location.state?.roleFilter || "");
   const [updatingId,  setUpdatingId]  = useState(null);
-  const [successMsg,  setSuccessMsg]  = useState("");
+  const [toast,       setToast]       = useState(null);
   const [pagination,  setPagination]  = useState({ total: 0, current_page: 1, last_page: 1 });
   // AdminUserController meta does not include per_page; 20 matches paginate(20) in the controller
   const perPage = 20;
@@ -44,6 +78,8 @@ export default function AdminUsers() {
   });
   const [createErrors, setCreateErrors] = useState({});
   const [creating,     setCreating]     = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
 
   // ── Fetch users whenever search/filter/page changes ──────────────
   const fetchUsers = useCallback(async (page = 1) => {
@@ -79,9 +115,11 @@ export default function AdminUsers() {
     }
   }, [location.state]);
 
-  const flash = (msg) => {
-    setSuccessMsg(msg);
-    setTimeout(() => setSuccessMsg(""), 3500);
+  const flash = (msg) => setToast({ message: msg, type: "success" });
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setRoleFilter("");
   };
 
   // ── Suspend / Activate ────────────────────────────────────────────
@@ -95,7 +133,7 @@ export default function AdminUsers() {
       );
       flash(`${user.name} ${newStatus === "active" ? "activated" : "suspended"}.`);
     } catch (err) {
-      setError(err.message || "Failed to update status.");
+      setToast({ message: err.message || "Failed to update status.", type: "error" });
     } finally {
       setUpdatingId(null);
     }
@@ -109,9 +147,9 @@ export default function AdminUsers() {
       setUsers((prev) =>
         prev.map((u) => u.user_id === user.user_id ? { ...u, is_verified: true } : u)
       );
-      flash(`${user.name} has been verified as a farmer. ✅`);
+      flash(`${user.name} has been verified as a farmer.`);
     } catch (err) {
-      setError(err.message || "Failed to verify farmer.");
+      setToast({ message: err.message || "Failed to verify farmer.", type: "error" });
     } finally {
       setUpdatingId(null);
     }
@@ -135,7 +173,7 @@ export default function AdminUsers() {
         </>
       );
     } catch (err) {
-      setError(err.message || "Failed to reset password.");
+      setToast({ message: err.message || "Failed to reset password.", type: "error" });
     } finally {
       setUpdatingId(null);
     }
@@ -195,11 +233,7 @@ export default function AdminUsers() {
   return (
     <DashboardLayout title="Users" navItems={navItems}>
 
-      {successMsg && (
-        <div className="alert alert-success d-flex align-items-center gap-2 py-2 small mb-3">
-          <i className="bi bi-check-circle-fill"></i> {successMsg}
-        </div>
-      )}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       {/* Create admin button */}
       <div className="mb-3 d-flex justify-content-end">
@@ -230,7 +264,7 @@ export default function AdminUsers() {
         </div>
         <div className="col-6 col-md-2">
           <button className="btn btn-outline-secondary w-100"
-            onClick={() => { setSearchTerm(""); setRoleFilter(""); }}>
+            onClick={clearFilters}>
             Clear
           </button>
         </div>
@@ -240,62 +274,105 @@ export default function AdminUsers() {
       </div>
 
       {/* Create admin modal */}
-      <div className="modal fade" id="createAdminModal" tabIndex="-1" aria-hidden="true">
-        <div className="modal-dialog">
+      <div className="modal fade" id="createAdminModal" tabIndex="-1" aria-hidden="true"
+        aria-labelledby="createAdminModalLabel" aria-modal="true" role="dialog">
+        <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
           <div className="modal-content">
             <form onSubmit={handleCreateAdmin} noValidate>
               <div className="modal-header">
-                <h5 className="modal-title fw-bold">Create administrator</h5>
+                <h5 className="modal-title fw-bold" id="createAdminModalLabel">Create administrator</h5>
                 <button id="createAdminModalClose" type="button" className="btn-close"
                   data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
-              <div className="modal-body">
+              <div className="modal-body sm-fade-in">
                 {createErrors.general && (
                   <div className="alert alert-danger py-2 small">{createErrors.general}</div>
                 )}
                 <div className="mb-3">
-                  <label className="form-label fw-semibold small">Full name</label>
-                  <input name="name" type="text"
+                  <label htmlFor="create-admin-name" className="form-label fw-semibold small">
+                    Full name <span className="text-danger">*</span>
+                  </label>
+                  <input id="create-admin-name" name="name" type="text"
                     className={`form-control ${createErrors.name ? "is-invalid" : ""}`}
                     value={createForm.name} onChange={handleCreateChange} />
-                  {createErrors.name && <div className="invalid-feedback">{createErrors.name}</div>}
+                  {createErrors.name && (
+                    <div className="invalid-feedback d-block">
+                      <i className="bi bi-exclamation-circle me-1"></i>{createErrors.name}
+                    </div>
+                  )}
                 </div>
                 <div className="mb-3">
-                  <label className="form-label fw-semibold small">Email address</label>
-                  <input name="email" type="email"
+                  <label htmlFor="create-admin-email" className="form-label fw-semibold small">
+                    Email address <span className="text-danger">*</span>
+                  </label>
+                  <input id="create-admin-email" name="email" type="email"
                     className={`form-control ${createErrors.email ? "is-invalid" : ""}`}
                     value={createForm.email} onChange={handleCreateChange} />
-                  {createErrors.email && <div className="invalid-feedback">{createErrors.email}</div>}
+                  {createErrors.email && (
+                    <div className="invalid-feedback d-block">
+                      <i className="bi bi-exclamation-circle me-1"></i>{createErrors.email}
+                    </div>
+                  )}
                 </div>
                 <div className="mb-3">
-                  <label className="form-label fw-semibold small">Phone number</label>
-                  <input name="phone" type="tel"
+                  <label htmlFor="create-admin-phone" className="form-label fw-semibold small">
+                    Phone number <span className="text-danger">*</span>
+                  </label>
+                  <input id="create-admin-phone" name="phone" type="tel"
                     className={`form-control ${createErrors.phone ? "is-invalid" : ""}`}
                     placeholder="0712 345 678"
                     value={createForm.phone} onChange={handleCreateChange} />
-                  {createErrors.phone && <div className="invalid-feedback">{createErrors.phone}</div>}
+                  {createErrors.phone && (
+                    <div className="invalid-feedback d-block">
+                      <i className="bi bi-exclamation-circle me-1"></i>{createErrors.phone}
+                    </div>
+                  )}
                 </div>
                 <div className="mb-3">
-                  <label className="form-label fw-semibold small">Password</label>
-                  <input name="password" type="password"
-                    className={`form-control ${createErrors.password ? "is-invalid" : ""}`}
-                    value={createForm.password} onChange={handleCreateChange} />
-                  {createErrors.password && <div className="invalid-feedback">{createErrors.password}</div>}
+                  <label htmlFor="create-admin-password" className="form-label fw-semibold small">
+                    Password <span className="text-danger">*</span>
+                  </label>
+                  <div className="input-group">
+                    <input id="create-admin-password" name="password" type={showPassword ? "text" : "password"}
+                      className={`form-control ${createErrors.password ? "is-invalid" : ""}`}
+                      value={createForm.password} onChange={handleCreateChange} />
+                    <button type="button" className="btn btn-outline-secondary" aria-label={showPassword ? "Hide password" : "Show password"}
+                      onClick={() => setShowPassword(!showPassword)}>
+                      <i className={`bi bi-${showPassword ? "eye-slash" : "eye"}`}></i>
+                    </button>
+                    {createErrors.password && (
+                      <div className="invalid-feedback d-block">
+                        <i className="bi bi-exclamation-circle me-1"></i>{createErrors.password}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="mb-1">
-                  <label className="form-label fw-semibold small">Confirm password</label>
-                  <input name="password_confirmation" type="password"
-                    className={`form-control ${createErrors.password_confirmation ? "is-invalid" : ""}`}
-                    value={createForm.password_confirmation} onChange={handleCreateChange} />
-                  {createErrors.password_confirmation && <div className="invalid-feedback">{createErrors.password_confirmation}</div>}
+                <div className="mb-4">
+                  <label htmlFor="create-admin-password-confirm" className="form-label fw-semibold small">
+                    Confirm password <span className="text-danger">*</span>
+                  </label>
+                  <div className="input-group">
+                    <input id="create-admin-password-confirm" name="password_confirmation" type={showPasswordConfirm ? "text" : "password"}
+                      className={`form-control ${createErrors.password_confirmation ? "is-invalid" : ""}`}
+                      value={createForm.password_confirmation} onChange={handleCreateChange} />
+                    <button type="button" className="btn btn-outline-secondary" aria-label={showPasswordConfirm ? "Hide password" : "Show password"}
+                      onClick={() => setShowPasswordConfirm(!showPasswordConfirm)}>
+                      <i className={`bi bi-${showPasswordConfirm ? "eye-slash" : "eye"}`}></i>
+                    </button>
+                    {createErrors.password_confirmation && (
+                      <div className="invalid-feedback d-block">
+                        <i className="bi bi-exclamation-circle me-1"></i>{createErrors.password_confirmation}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="submit" className="btn btn-success" disabled={creating}>
                   {creating
-                    ? <><span className="spinner-border spinner-border-sm me-2"></span>Creating…</>
-                    : "Create admin"}
+                    ? <><span className="spinner-border spinner-border-sm me-2"></span>Creating...</>
+                    : <><i className="bi bi-check-circle me-2"></i>Create admin</>}
                 </button>
               </div>
             </form>
@@ -303,46 +380,35 @@ export default function AdminUsers() {
         </div>
       </div>
 
-      {loading && (
-        <div className="text-center py-5">
-          <span className="spinner-border text-success"></span>
-          <div className="text-muted small mt-2">Loading users…</div>
-        </div>
-      )}
+      {loading && <PageLoader text="Loading users..." />}
 
       {error && <div className="alert alert-danger">{error}</div>}
 
       {!loading && !error && users.length === 0 && (
-        <div className="text-center py-5">
-          <div
-            className="rounded-circle bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3"
-            style={{ width: 72, height: 72 }}
-          >
-            <i className="bi bi-people text-success" style={{ fontSize: "1.8rem" }}></i>
-          </div>
-          <h6 className="fw-semibold mb-1">No users found</h6>
-          <p className="text-muted small mb-0">
-            {searchTerm || roleFilter
-              ? "No users match your search. Try adjusting the filters."
-              : "No registered users yet."}
-          </p>
-        </div>
+        <EmptyState
+          icon="bi-people"
+          title="No users found"
+          text="No users match your current search or filter criteria."
+          btnLabel="Clear filters"
+          btnAction={clearFilters}
+        />
       )}
 
       {!loading && !error && users.length > 0 && (
         <>
-          <div className="card border-0 shadow-sm">
+          <div className="card border-0 shadow-sm sm-fade-in">
             <div className="table-responsive">
-              <table className="table table-hover mb-0" style={{ fontSize: "0.875rem" }}>
+              <table className="table table-hover align-middle table-striped-columns mb-0" style={{ fontSize: "0.875rem" }}>
+                <caption className="visually-hidden">Registered users</caption>
                 <thead className="table-light">
                   <tr>
-                    <th>Name</th>
-                    <th>Role</th>
-                    <th>Region</th>
-                    <th>Joined</th>
-                    <th>Status</th>
-                    <th>Verified</th>
-                    <th>Actions</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Role</th>
+                    <th scope="col">Region</th>
+                    <th scope="col">Joined</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Verified</th>
+                    <th scope="col">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -353,7 +419,7 @@ export default function AdminUsers() {
                         <div className="d-flex align-items-center gap-2">
                           <div className="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white flex-shrink-0"
                             style={{ width: 32, height: 32,
-                              background: user.avatar_url ? "transparent" : "#198754",
+                              background: user.avatar_url ? "transparent" : "var(--sm-green)",
                               fontSize: "0.8rem" }}>
                             {user.avatar_url
                               ? <img src={user.avatar_url} alt={user.name}

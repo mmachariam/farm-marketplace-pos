@@ -13,7 +13,7 @@ function NotFound() {
         The page you're looking for doesn't exist or may have been moved.
         Let's get you back to familiar ground.
       </p>
-      <div className="d-flex gap-2">
+      <div className="d-flex flex-wrap justify-content-center gap-2">
         <Link to="/" className="btn fw-semibold px-4" style={{ background: "var(--sm-green)", color: "#fff", border: "none" }}>
           Back to home
         </Link>

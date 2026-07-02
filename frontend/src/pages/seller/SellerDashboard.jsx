@@ -7,6 +7,17 @@ import { Link } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
 import { apiRequest } from "../../utils/api";
 
+function PageLoader({ text = "Loading..." }) {
+  return (
+    <div className="d-flex flex-column align-items-center justify-content-center py-5 gap-3 sm-fade-in">
+      <div className="spinner-border text-success" role="status" style={{ width: "2rem", height: "2rem" }}>
+        <span className="visually-hidden">Loading...</span>
+      </div>
+      <span className="text-muted small">{text}</span>
+    </div>
+  );
+}
+
 function SellerDashboard() {
   const navItems = [
     { label: "Dashboard",  icon: "bi-speedometer2",   path: "/seller/dashboard",  active: true  },
@@ -49,13 +60,13 @@ function SellerDashboard() {
 
   return (
     <DashboardLayout title="Dashboard" navItems={navItems}>
-      {loading && <div className="text-center text-muted py-5">Loading dashboard…</div>}
+      {loading && <PageLoader text="Loading your dashboard..." />}
       {error   && <div className="alert alert-danger">{error}</div>}
 
       {!loading && !error && stats && (
         <>
           {/* Stat cards */}
-          <div className="row g-3 mb-4">
+          <div className="row g-3 mb-4 sm-fade-in">
             {[
               { label: "Sales this month", value: `KES ${stats.totalSales.toLocaleString()}`, icon: "bi-cash-coin"       },
               { label: "Active listings",  value: stats.activeListings,                        icon: "bi-flower2"          },
@@ -63,14 +74,13 @@ function SellerDashboard() {
               { label: "Average rating",   value: `${stats.averageRating} ★`,                 icon: "bi-star-fill"        },
             ].map((card) => (
               <div className="col-6 col-lg-3" key={card.label}>
-                <div className="sm-card p-3 d-flex align-items-center gap-3">
-                  <div className="rounded-circle d-flex align-items-center justify-content-center"
-                    style={{ width: 44, height: 44, background: "var(--sm-green-light)", color: "var(--sm-green)", fontSize: "1.1rem", flexShrink: 0 }}>
+                <div className="sm-stat-card d-flex align-items-center gap-3">
+                  <div className="sm-stat-icon">
                     <i className={`bi ${card.icon}`}></i>
                   </div>
                   <div>
-                    <div className="text-muted" style={{ fontSize: "0.72rem" }}>{card.label}</div>
-                    <div className="fw-bold" style={{ fontSize: "1.1rem" }}>{card.value}</div>
+                    <div className="sm-stat-value">{card.value}</div>
+                    <div className="sm-stat-label">{card.label}</div>
                   </div>
                 </div>
               </div>

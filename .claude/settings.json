@@ -103,7 +103,14 @@
       "Bash(node verify_seller.js)",
       "Bash(node verify_sale_and_cards.js)",
       "Bash(curl -s \"http://localhost:8000/api/products?search=Kale\")",
-      "Bash(php -r \"echo json_encode\\(json_decode\\(file_get_contents\\('php://stdin'\\),true\\)['data'][0], JSON_PRETTY_PRINT\\);\")"
+      "Bash(php -r \"echo json_encode\\(json_decode\\(file_get_contents\\('php://stdin'\\),true\\)['data'][0], JSON_PRETTY_PRINT\\);\")",
+      "Bash(grep -rn \"width: *[0-9]\\\\{3,\\\\}\" pages components)",
+      "Bash(node verify_css.js)",
+      "Bash(node verify_states.js)",
+      "Bash(node verify_toast.js)",
+      "Bash(node verify_polish.js)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/api/categories)"
     ],
     "additionalDirectories": [
       "/tmp"

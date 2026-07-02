@@ -8,6 +8,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
+import Toast from "../../components/Toast";
 import { apiRequest } from "../../utils/api";
 
 export default function AdminFarmerDetail() {
@@ -25,7 +26,7 @@ export default function AdminFarmerDetail() {
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState("");
   const [updating,   setUpdating]   = useState(false);
-  const [successMsg, setSuccessMsg] = useState("");
+  const [toast,      setToast]      = useState(null);
 
   useEffect(() => {
     async function fetchFarmer() {
@@ -43,10 +44,7 @@ export default function AdminFarmerDetail() {
     fetchFarmer();
   }, [farmerId]);
 
-  const flash = (msg) => {
-    setSuccessMsg(msg);
-    setTimeout(() => setSuccessMsg(""), 3500);
-  };
+  const flash = (msg) => setToast({ message: msg, type: "success" });
 
   const toggleStatus = async () => {
     const newStatus = farmer.status === "active" ? "suspended" : "active";
@@ -56,7 +54,7 @@ export default function AdminFarmerDetail() {
       setFarmer((prev) => ({ ...prev, status: newStatus }));
       flash(`${farmer.name} ${newStatus === "active" ? "activated" : "suspended"}.`);
     } catch (err) {
-      setError(err.message || "Failed to update status.");
+      setToast({ message: err.message || "Failed to update status.", type: "error" });
     } finally {
       setUpdating(false);
     }
@@ -75,7 +73,7 @@ export default function AdminFarmerDetail() {
         flash(`${farmer.name} has been verified as a farmer.`);
       }
     } catch (err) {
-      setError(err.message || "Failed to update verification.");
+      setToast({ message: err.message || "Failed to update verification.", type: "error" });
     } finally {
       setUpdating(false);
     }
@@ -122,12 +120,7 @@ export default function AdminFarmerDetail() {
         </Link>
       </div>
 
-      {successMsg && (
-        <div className="alert alert-success d-flex align-items-center gap-2 py-2 small mb-3">
-          <i className="bi bi-check-circle-fill"></i> {successMsg}
-        </div>
-      )}
-      {error && <div className="alert alert-danger py-2 small mb-3">{error}</div>}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       {/* Profile header */}
       <div className="card border-0 shadow-sm mb-4">
@@ -136,8 +129,8 @@ export default function AdminFarmerDetail() {
             <div className="d-flex align-items-center gap-3">
               <div className="rounded-circle overflow-hidden d-flex align-items-center justify-content-center fw-bold text-white flex-shrink-0"
                 style={{ width: 64, height: 64,
-                  background: farmer.avatar_url ? "transparent" : "#198754",
-                  fontSize: "1.5rem", border: "3px solid #d1e7dd" }}>
+                  background: farmer.avatar_url ? "transparent" : "var(--sm-green)",
+                  fontSize: "1.5rem", border: "3px solid var(--sm-green-border)" }}>
                 {farmer.avatar_url
                   ? <img src={farmer.avatar_url} alt={farmer.name}
                       style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -151,7 +144,7 @@ export default function AdminFarmerDetail() {
             </div>
 
             <div className="d-flex flex-column align-items-end gap-2">
-              <div className="d-flex gap-2">
+              <div className="d-flex flex-wrap gap-2">
                 <span className={`badge rounded-pill ${farmer.status === "active" ? "badge-delivered" : "badge-cancelled"}`}>
                   {farmer.status === "active" ? "Active" : "Suspended"}
                 </span>

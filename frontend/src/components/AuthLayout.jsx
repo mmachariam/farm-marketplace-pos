@@ -29,19 +29,19 @@ function AuthLayout({ children }) {
           <div className="d-flex flex-column gap-3">
             <div className="d-flex align-items-start gap-3">
               <div className="sm-feature-dot"><i className="bi bi-flower2"></i></div>
-              <div className="pt-1" style={{ fontSize: "0.875rem", color: "#27500A" }}>
+              <div className="pt-1 small text-success-emphasis">
                 Farmers earn more selling directly at farm-gate prices
               </div>
             </div>
             <div className="d-flex align-items-start gap-3">
               <div className="sm-feature-dot"><i className="bi bi-geo-alt"></i></div>
-              <div className="pt-1" style={{ fontSize: "0.875rem", color: "#27500A" }}>
+              <div className="pt-1 small text-success-emphasis">
                 Regional collection zones make pickup fast and affordable
               </div>
             </div>
             <div className="d-flex align-items-start gap-3">
               <div className="sm-feature-dot"><i className="bi bi-star"></i></div>
-              <div className="pt-1" style={{ fontSize: "0.875rem", color: "#27500A" }}>
+              <div className="pt-1 small text-success-emphasis">
                 Verified farmers with real buyer reviews and ratings
               </div>
             </div>

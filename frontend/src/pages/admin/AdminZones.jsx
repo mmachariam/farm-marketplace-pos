@@ -11,9 +11,43 @@
 // ===========================================
 
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
+import Toast from "../../components/Toast";
 import { apiRequest } from "../../utils/api";
+
+function EmptyState({ icon, title, text, btnLabel, btnTo, btnAction }) {
+  return (
+    <div className="sm-empty sm-fade-in">
+      <div className="sm-empty-icon">
+        <i className={`bi ${icon}`}></i>
+      </div>
+      <div className="sm-empty-title">{title}</div>
+      <p className="sm-empty-text">{text}</p>
+      {btnTo && (
+        <Link to={btnTo} className="btn btn-success btn-sm px-4">
+          {btnLabel}
+        </Link>
+      )}
+      {btnAction && (
+        <button className="btn btn-success btn-sm px-4" onClick={btnAction}>
+          {btnLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PageLoader({ text = "Loading..." }) {
+  return (
+    <div className="d-flex flex-column align-items-center justify-content-center py-5 gap-3 sm-fade-in">
+      <div className="spinner-border text-success" role="status" style={{ width: "2rem", height: "2rem" }}>
+        <span className="visually-hidden">Loading...</span>
+      </div>
+      <span className="text-muted small">{text}</span>
+    </div>
+  );
+}
 
 export default function AdminZones() {
   const location = useLocation();
@@ -31,7 +65,7 @@ export default function AdminZones() {
   const [error,      setError]      = useState("");
   const [showForm,   setShowForm]   = useState(!!location.state?.openForm);
   const [saving,     setSaving]     = useState(false);
-  const [successMsg, setSuccessMsg] = useState("");
+  const [toast,      setToast]      = useState(null);
 
   const [formData,   setFormData]   = useState({
     zoneName:      "",
@@ -96,8 +130,7 @@ export default function AdminZones() {
       setZones((prev) => [...prev, data.data]);
       setFormData({ zoneName: "", region: "", pickupAddress: "" });
       setShowForm(false);
-      setSuccessMsg("Pickup zone added successfully.");
-      setTimeout(() => setSuccessMsg(""), 3500);
+      setToast({ message: "Pickup zone added successfully.", type: "success" });
 
     } catch (err) {
       if (err.errors) {
@@ -157,8 +190,7 @@ export default function AdminZones() {
 
       setZones((prev) => prev.map((z) => z.zone_id === zoneId ? { ...z, ...data.data } : z));
       setEditingId(null);
-      setSuccessMsg("Pickup zone updated successfully.");
-      setTimeout(() => setSuccessMsg(""), 3500);
+      setToast({ message: "Pickup zone updated successfully.", type: "success" });
 
     } catch (err) {
       if (err.errors) {
@@ -184,8 +216,7 @@ export default function AdminZones() {
     try {
       await apiRequest(`/admin/zones/${zone.zone_id}`, "DELETE");
       setZones((prev) => prev.filter((z) => z.zone_id !== zone.zone_id));
-      setSuccessMsg("Pickup zone deleted successfully.");
-      setTimeout(() => setSuccessMsg(""), 3500);
+      setToast({ message: "Pickup zone deleted successfully.", type: "success" });
     } catch (err) {
       setZoneErrors((prev) => ({ ...prev, [zone.zone_id]: err.message || "Failed to delete zone." }));
     } finally {
@@ -196,11 +227,7 @@ export default function AdminZones() {
   return (
     <DashboardLayout title="Pickup zones" navItems={navItems}>
 
-      {successMsg && (
-        <div className="alert alert-success d-flex align-items-center gap-2 py-2 small mb-3">
-          <i className="bi bi-check-circle-fill"></i> {successMsg}
-        </div>
-      )}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       {error && <div className="alert alert-danger mb-3">{error}</div>}
 
@@ -222,38 +249,56 @@ export default function AdminZones() {
             <form onSubmit={handleAddZone} noValidate>
               <div className="row g-3">
                 <div className="col-12 col-md-4">
-                  <label className="form-label fw-semibold small">Zone name</label>
-                  <input className={`form-control ${formErrors.zoneName ? "is-invalid" : ""}`}
+                  <label htmlFor="zone-name" className="form-label fw-semibold small">
+                    Zone name <span className="text-danger">*</span>
+                  </label>
+                  <input id="zone-name" className={`form-control ${formErrors.zoneName ? "is-invalid" : ""}`}
                     name="zoneName" placeholder="e.g. Eldoret Zone"
                     value={formData.zoneName} onChange={handleChange} />
-                  {formErrors.zoneName && <div className="invalid-feedback">{formErrors.zoneName}</div>}
+                  {formErrors.zoneName && (
+                    <div className="invalid-feedback d-block">
+                      <i className="bi bi-exclamation-circle me-1"></i>{formErrors.zoneName}
+                    </div>
+                  )}
                 </div>
 
                 <div className="col-12 col-md-3">
-                  <label className="form-label fw-semibold small">Region</label>
-                  <select className={`form-select ${formErrors.region ? "is-invalid" : ""}`}
+                  <label htmlFor="zone-region" className="form-label fw-semibold small">
+                    Region <span className="text-danger">*</span>
+                  </label>
+                  <select id="zone-region" className={`form-select ${formErrors.region ? "is-invalid" : ""}`}
                     name="region" value={formData.region} onChange={handleChange}>
                     <option value="">Select region</option>
                     {["Kiambu","Nakuru","Meru","Nairobi","Eldoret","Kisumu","Mombasa","Kakamega"].map((r) => (
                       <option key={r} value={r}>{r}</option>
                     ))}
                   </select>
-                  {formErrors.region && <div className="invalid-feedback">{formErrors.region}</div>}
+                  {formErrors.region && (
+                    <div className="invalid-feedback d-block">
+                      <i className="bi bi-exclamation-circle me-1"></i>{formErrors.region}
+                    </div>
+                  )}
                 </div>
 
                 <div className="col-12 col-md-5">
-                  <label className="form-label fw-semibold small">Pickup address</label>
-                  <input className={`form-control ${formErrors.pickupAddress ? "is-invalid" : ""}`}
+                  <label htmlFor="zone-pickup-address" className="form-label fw-semibold small">
+                    Pickup address <span className="text-danger">*</span>
+                  </label>
+                  <input id="zone-pickup-address" className={`form-control ${formErrors.pickupAddress ? "is-invalid" : ""}`}
                     name="pickupAddress" placeholder="e.g. Eldoret Town Market, Gate 1"
                     value={formData.pickupAddress} onChange={handleChange} />
-                  {formErrors.pickupAddress && <div className="invalid-feedback">{formErrors.pickupAddress}</div>}
+                  {formErrors.pickupAddress && (
+                    <div className="invalid-feedback d-block">
+                      <i className="bi bi-exclamation-circle me-1"></i>{formErrors.pickupAddress}
+                    </div>
+                  )}
                 </div>
               </div>
 
               <button type="submit" className="btn btn-success btn-sm mt-3 px-4"
                 disabled={saving}>
                 {saving
-                  ? <><span className="spinner-border spinner-border-sm me-2"></span>Saving…</>
+                  ? <><span className="spinner-border spinner-border-sm me-2"></span>Saving...</>
                   : "Save zone"}
               </button>
             </form>
@@ -262,17 +307,16 @@ export default function AdminZones() {
       )}
 
       {/* Zones list */}
-      {loading && (
-        <div className="text-center py-5">
-          <span className="spinner-border text-success"></span>
-          <div className="text-muted small mt-2">Loading zones…</div>
-        </div>
-      )}
+      {loading && <PageLoader text="Loading pickup zones..." />}
 
       {!loading && zones.length === 0 && !error && (
-        <div className="text-center text-muted py-5">
-          No pickup zones yet. Add the first one above.
-        </div>
+        <EmptyState
+          icon="bi-geo-alt"
+          title="No pickup zones yet"
+          text="Add your first pickup zone so farmers and buyers can coordinate collections."
+          btnLabel="Add zone"
+          btnAction={() => setShowForm(true)}
+        />
       )}
 
       {!loading && zones.length > 0 && (
@@ -286,35 +330,50 @@ export default function AdminZones() {
                     // ── Inline edit form ──────────────────────────
                     <div>
                       <div className="mb-2">
-                        <label className="form-label small fw-semibold mb-1">Zone name</label>
-                        <input className={`form-control form-control-sm ${editErrors.zoneName ? "is-invalid" : ""}`}
+                        <label htmlFor={`zone-edit-name-${zone.zone_id}`} className="form-label small fw-semibold mb-1">Zone name</label>
+                        <input id={`zone-edit-name-${zone.zone_id}`} className={`form-control form-control-sm ${editErrors.zoneName ? "is-invalid" : ""}`}
                           name="zoneName" value={editForm.zoneName} onChange={handleEditChange} />
-                        {editErrors.zoneName && <div className="invalid-feedback">{editErrors.zoneName}</div>}
+                        {editErrors.zoneName && (
+                          <div className="invalid-feedback d-block">
+                            <i className="bi bi-exclamation-circle me-1"></i>{editErrors.zoneName}
+                          </div>
+                        )}
                       </div>
                       <div className="mb-2">
-                        <label className="form-label small fw-semibold mb-1">Region</label>
-                        <select className={`form-select form-select-sm ${editErrors.region ? "is-invalid" : ""}`}
+                        <label htmlFor={`zone-edit-region-${zone.zone_id}`} className="form-label small fw-semibold mb-1">Region</label>
+                        <select id={`zone-edit-region-${zone.zone_id}`} className={`form-select form-select-sm ${editErrors.region ? "is-invalid" : ""}`}
                           name="region" value={editForm.region} onChange={handleEditChange}>
                           <option value="">Select region</option>
                           {["Kiambu","Nakuru","Meru","Nairobi","Eldoret","Kisumu","Mombasa","Kakamega"].map((r) => (
                             <option key={r} value={r}>{r}</option>
                           ))}
                         </select>
-                        {editErrors.region && <div className="invalid-feedback">{editErrors.region}</div>}
+                        {editErrors.region && (
+                          <div className="invalid-feedback d-block">
+                            <i className="bi bi-exclamation-circle me-1"></i>{editErrors.region}
+                          </div>
+                        )}
                       </div>
                       <div className="mb-3">
-                        <label className="form-label small fw-semibold mb-1">Pickup address</label>
-                        <input className={`form-control form-control-sm ${editErrors.pickupAddress ? "is-invalid" : ""}`}
+                        <label htmlFor={`zone-edit-address-${zone.zone_id}`} className="form-label small fw-semibold mb-1">Pickup address</label>
+                        <input id={`zone-edit-address-${zone.zone_id}`} className={`form-control form-control-sm ${editErrors.pickupAddress ? "is-invalid" : ""}`}
                           name="pickupAddress" value={editForm.pickupAddress} onChange={handleEditChange} />
-                        {editErrors.pickupAddress && <div className="invalid-feedback">{editErrors.pickupAddress}</div>}
+                        {editErrors.pickupAddress && (
+                          <div className="invalid-feedback d-block">
+                            <i className="bi bi-exclamation-circle me-1"></i>{editErrors.pickupAddress}
+                          </div>
+                        )}
                       </div>
                       {zoneErrors[zone.zone_id] && (
                         <div className="alert alert-danger py-1 px-2 small mb-2">{zoneErrors[zone.zone_id]}</div>
                       )}
-                      <div className="d-flex gap-2">
+                      <div className="d-flex flex-wrap gap-2">
                         <button className="btn btn-success btn-sm flex-grow-1"
                           onClick={() => handleSaveEdit(zone.zone_id)} disabled={editSaving}>
-                          {editSaving ? "Saving…" : "Save"}
+                          {editSaving
+                            ? <><span className="spinner-border spinner-border-sm me-2"></span>Saving...</>
+                            : <>Save</>
+                          }
                         </button>
                         <button className="btn btn-outline-secondary btn-sm flex-grow-1"
                           onClick={cancelEdit} disabled={editSaving}>
@@ -325,20 +384,20 @@ export default function AdminZones() {
                   ) : (
                     // ── Read-only view ────────────────────────────
                     <div className="d-flex align-items-start gap-3">
-                      <div className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                        style={{ width: 42, height: 42, background: "#d1e7dd" }}>
+                      <div className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 bg-success-subtle"
+                        style={{ width: 42, height: 42 }}>
                         <i className="bi bi-geo-alt-fill text-success"></i>
                       </div>
                       <div className="flex-grow-1">
                         <div className="d-flex justify-content-between align-items-start">
                           <div className="fw-bold mb-1">{zone.zone_name}</div>
-                          <div className="d-flex gap-1">
+                          <div className="d-flex flex-wrap gap-1">
                             <button className="btn btn-outline-secondary btn-sm py-0 px-1"
-                              title="Edit zone" onClick={() => startEdit(zone)}>
+                              title="Edit zone" aria-label="Edit zone" onClick={() => startEdit(zone)}>
                               <i className="bi bi-pencil" style={{ fontSize: "0.75rem" }}></i>
                             </button>
                             <button className="btn btn-outline-danger btn-sm py-0 px-1"
-                              title="Delete zone" onClick={() => handleDeleteZone(zone)}
+                              title="Delete zone" aria-label="Delete zone" onClick={() => handleDeleteZone(zone)}
                               disabled={deletingId === zone.zone_id}>
                               <i className="bi bi-trash" style={{ fontSize: "0.75rem" }}></i>
                             </button>

@@ -159,17 +159,18 @@ function Checkout() {
       {cart.length === 0 && !isSuccess && (
         <div className="text-center text-muted py-5">
           Your cart is empty.{" "}
-          <Link to="/buyer/dashboard" style={{ color: "var(--sm-green)" }}>Browse produce</Link> to add items.
+          <Link to="/buyer/dashboard" className="text-success">Browse produce</Link> to add items.
         </div>
       )}
 
       {cart.length > 0 && !isSuccess && (
-        <form onSubmit={handleConfirmAndPay} noValidate>
+        <form onSubmit={handleConfirmAndPay} noValidate className="sm-fade-in">
           <div className="row g-4">
             {/* ── Order summary + zone ── */}
             <div className="col-12 col-lg-7">
               <h6 className="fw-bold mb-3">Order summary</h6>
               <div className="sm-card mb-4">
+                <div className="table-responsive">
                 <table className="table table-sm mb-0" style={{ fontSize: "0.875rem" }}>
                   <thead className="table-light">
                     <tr><th>Item</th><th>Qty</th><th className="text-end">Subtotal</th></tr>
@@ -190,11 +191,13 @@ function Checkout() {
                     </tr>
                   </tbody>
                 </table>
+                </div>
               </div>
 
               <h6 className="fw-bold mb-3">Pickup zone</h6>
               <div className="mb-2">
                 <select
+                  aria-label="Pickup zone"
                   className={`form-select ${errors.zone ? "is-invalid" : ""}`}
                   value={zoneId}
                   onChange={(e) => { setZoneId(e.target.value); setErrors((p) => ({ ...p, zone: "" })); }}
@@ -209,14 +212,17 @@ function Checkout() {
                 </select>
               </div>
               {selectedZone && (
-                <div className="rounded-3 p-2 mb-2 small" style={{ background: "var(--sm-green-light)", color: "#27500A" }}>
+                <div className="rounded-3 p-2 mb-2 small bg-success-subtle text-success-emphasis">
                   <i className="bi bi-geo-alt-fill me-1"></i>{selectedZone.pickup_address}
                 </div>
               )}
               <div className="text-muted small text-center mb-2">— or —</div>
               <div className="mb-1">
-                <label className="form-label small fw-semibold">Delivery address (optional)</label>
+                <label htmlFor="checkout-delivery-address" className="form-label small fw-semibold">
+                  Delivery address <span className="text-muted fw-normal">(optional)</span>
+                </label>
                 <input
+                  id="checkout-delivery-address"
                   className="form-control"
                   placeholder="Leave blank to collect from a zone"
                   value={deliveryAddress}
@@ -224,7 +230,11 @@ function Checkout() {
                   disabled={loading}
                 />
               </div>
-              {errors.zone && <div className="text-danger small">{errors.zone}</div>}
+              {errors.zone && (
+                <div className="text-danger small">
+                  <i className="bi bi-exclamation-circle me-1"></i>{errors.zone}
+                </div>
+              )}
             </div>
 
             {/* ── Payment ── */}
@@ -232,8 +242,11 @@ function Checkout() {
               <h6 className="fw-bold mb-3">Payment</h6>
               <div className="sm-card p-4">
                 <div className="mb-3">
-                  <label className="form-label fw-semibold small">Payment method</label>
+                  <label htmlFor="checkout-payment-method" className="form-label fw-semibold small">
+                    Payment method <span className="text-danger">*</span>
+                  </label>
                   <select
+                    id="checkout-payment-method"
                     className="form-select"
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value)}
@@ -247,8 +260,11 @@ function Checkout() {
 
                 {paymentMethod === "M-Pesa" && (
                   <div className="mb-3">
-                    <label className="form-label fw-semibold small">M-Pesa number</label>
+                    <label htmlFor="checkout-mpesa-number" className="form-label fw-semibold small">
+                      M-Pesa number <span className="text-danger">*</span>
+                    </label>
                     <input
+                      id="checkout-mpesa-number"
                       type="tel"
                       className={`form-control ${errors.mpesa ? "is-invalid" : ""}`}
                       placeholder="07XX XXX XXX"
@@ -256,8 +272,12 @@ function Checkout() {
                       onChange={(e) => { setMpesaNumber(e.target.value); setErrors((p) => ({ ...p, mpesa: "" })); }}
                       disabled={loading}
                     />
-                    {errors.mpesa && <div className="invalid-feedback">{errors.mpesa}</div>}
-                    <div className="form-text">You'll receive an STK push prompt to complete payment.</div>
+                    {errors.mpesa && (
+                      <div className="invalid-feedback d-block">
+                        <i className="bi bi-exclamation-circle me-1"></i>{errors.mpesa}
+                      </div>
+                    )}
+                    <div className="form-text text-muted">You'll receive an STK push prompt to complete payment.</div>
                   </div>
                 )}
 
@@ -267,12 +287,11 @@ function Checkout() {
 
                 <button
                   type="submit"
-                  className="btn w-100 fw-semibold py-2"
-                  style={{ background: "var(--sm-green)", color: "#fff", border: "none" }}
+                  className="btn btn-success w-100 fw-semibold py-2"
                   disabled={loading}
                 >
                   {loading
-                    ? <><span className="spinner-border spinner-border-sm me-2"></span>Processing…</>
+                    ? <><span className="spinner-border spinner-border-sm me-2"></span>Processing...</>
                     : `Confirm & pay KES ${cartTotal.toFixed(2)}`}
                 </button>
               </div>

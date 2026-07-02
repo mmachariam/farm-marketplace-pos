@@ -7,6 +7,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import DashboardLayout from "../../components/DashboardLayout";
+import Toast from "../../components/Toast";
 import { apiRequest, apiUpload } from "../../utils/api";
 import { getUser, setUser } from "../../utils/auth";
 
@@ -37,7 +38,7 @@ export default function AdminProfile() {
 
   const [errors,     setErrors]     = useState({});
   const [saving,     setSaving]     = useState(false);
-  const [successMsg, setSuccessMsg] = useState("");
+  const [toast,      setToast]      = useState(null);
 
   const [passwordData, setPasswordData] = useState({
     current_password: "",
@@ -46,7 +47,9 @@ export default function AdminProfile() {
   });
   const [passwordErrors,  setPasswordErrors]  = useState({});
   const [passwordSaving,  setPasswordSaving]  = useState(false);
-  const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword,     setShowNewPassword]     = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Load full profile from backend on mount
   useEffect(() => {
@@ -105,7 +108,6 @@ export default function AdminProfile() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    setSuccessMsg("");
     if (!validate()) return;
 
     setSaving(true);
@@ -134,8 +136,7 @@ export default function AdminProfile() {
       });
 
       setImageFile(null);
-      setSuccessMsg("Profile updated successfully.");
-      setTimeout(() => setSuccessMsg(""), 4000);
+      setToast({ message: "Profile updated successfully.", type: "success" });
 
     } catch (err) {
       if (err.errors) {
@@ -145,7 +146,7 @@ export default function AdminProfile() {
         if (err.errors.phone_number) mapped.phone = err.errors.phone_number[0];
         setErrors(mapped);
       } else {
-        setErrors({ general: err.message || "Failed to update profile." });
+        setToast({ message: err.message || "Failed to update profile.", type: "error" });
       }
     } finally {
       setSaving(false);
@@ -171,15 +172,13 @@ export default function AdminProfile() {
 
   const handlePasswordSave = async (e) => {
     e.preventDefault();
-    setPasswordSuccess("");
     if (!validatePassword()) return;
 
     setPasswordSaving(true);
     try {
       await apiRequest("/admin/profile/password", "POST", passwordData);
       setPasswordData({ current_password: "", new_password: "", new_password_confirmation: "" });
-      setPasswordSuccess("Password updated successfully.");
-      setTimeout(() => setPasswordSuccess(""), 4000);
+      setToast({ message: "Password updated successfully.", type: "success" });
     } catch (err) {
       if (err.errors) {
         const mapped = {};
@@ -187,7 +186,7 @@ export default function AdminProfile() {
         if (err.errors.new_password)     mapped.new_password     = err.errors.new_password[0];
         setPasswordErrors(mapped);
       } else {
-        setPasswordErrors({ general: err.message || "Failed to update password." });
+        setToast({ message: err.message || "Failed to update password.", type: "error" });
       }
     } finally {
       setPasswordSaving(false);
@@ -220,14 +219,7 @@ export default function AdminProfile() {
       <div className="row justify-content-center">
         <div className="col-12 col-md-8 col-lg-6">
 
-          {successMsg && (
-            <div className="alert alert-success d-flex align-items-center gap-2 py-2 mb-4">
-              <i className="bi bi-check-circle-fill"></i> {successMsg}
-            </div>
-          )}
-          {errors.general && (
-            <div className="alert alert-danger py-2 mb-4">{errors.general}</div>
-          )}
+          {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
           {/* Avatar + profile form */}
           <div className="card border-0 shadow-sm mb-4">
@@ -235,21 +227,17 @@ export default function AdminProfile() {
 
               <div className="d-flex align-items-center gap-4 mb-4 pb-4 border-bottom">
                 <div className="position-relative flex-shrink-0">
-                  <div className="rounded-circle overflow-hidden d-flex align-items-center justify-content-center fw-bold text-white"
-                    style={{ width: 80, height: 80,
-                      background: imagePreview ? "transparent" : "#198754",
-                      fontSize: "1.8rem", border: "3px solid #d1e7dd" }}>
+                  <div className="sm-avatar-lg">
                     {imagePreview
-                      ? <img src={imagePreview} alt="Profile"
-                          style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ? <img src={imagePreview} alt={formData.name || "Profile"} />
                       : initial}
                   </div>
                   <button type="button"
-                    className="btn btn-success btn-sm rounded-circle position-absolute d-flex align-items-center justify-content-center p-0 shadow"
-                    style={{ width: 26, height: 26, bottom: 0, right: 0 }}
+                    className="sm-avatar-camera shadow-sm border-0"
                     onClick={() => fileInputRef.current?.click()}
-                    title="Change profile photo">
-                    <i className="bi bi-camera-fill" style={{ fontSize: "0.65rem" }}></i>
+                    title="Change profile photo"
+                    aria-label="Change profile photo">
+                    <i className="bi bi-camera-fill"></i>
                   </button>
                 </div>
 
@@ -272,21 +260,33 @@ export default function AdminProfile() {
 
               <form onSubmit={handleSave} noValidate>
                 <div className="mb-3">
-                  <label htmlFor="ap-name" className="form-label fw-semibold small">Full name</label>
+                  <label htmlFor="ap-name" className="form-label fw-semibold small">
+                    Full name <span className="text-danger">*</span>
+                  </label>
                   <input id="ap-name" name="name" type="text"
                     className={`form-control ${errors.name ? "is-invalid" : ""}`}
                     placeholder="e.g. Jane Wambui"
                     value={formData.name} onChange={handleChange} />
-                  {errors.name && <div className="invalid-feedback">{errors.name}</div>}
+                  {errors.name && (
+                    <div className="invalid-feedback d-block">
+                      <i className="bi bi-exclamation-circle me-1"></i>{errors.name}
+                    </div>
+                  )}
                 </div>
 
                 <div className="mb-3">
-                  <label htmlFor="ap-email" className="form-label fw-semibold small">Email address</label>
+                  <label htmlFor="ap-email" className="form-label fw-semibold small">
+                    Email address <span className="text-danger">*</span>
+                  </label>
                   <input id="ap-email" name="email" type="email"
                     className={`form-control ${errors.email ? "is-invalid" : ""}`}
                     placeholder="you@example.com"
                     value={formData.email} onChange={handleChange} />
-                  {errors.email && <div className="invalid-feedback">{errors.email}</div>}
+                  {errors.email && (
+                    <div className="invalid-feedback d-block">
+                      <i className="bi bi-exclamation-circle me-1"></i>{errors.email}
+                    </div>
+                  )}
                 </div>
 
                 <div className="mb-4">
@@ -297,13 +297,17 @@ export default function AdminProfile() {
                       className={`form-control ${errors.phone ? "is-invalid" : ""}`}
                       placeholder="0712 345 678"
                       value={formData.phone} onChange={handleChange} />
-                    {errors.phone && <div className="invalid-feedback">{errors.phone}</div>}
+                    {errors.phone && (
+                      <div className="invalid-feedback d-block">
+                        <i className="bi bi-exclamation-circle me-1"></i>{errors.phone}
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <button type="submit" className="btn btn-success w-100 fw-semibold py-2" disabled={saving}>
                   {saving
-                    ? <><span className="spinner-border spinner-border-sm me-2"></span>Saving…</>
+                    ? <><span className="spinner-border spinner-border-sm me-2"></span>Saving...</>
                     : <><i className="bi bi-check-circle me-2"></i>Save changes</>}
                 </button>
               </form>
@@ -316,43 +320,70 @@ export default function AdminProfile() {
             <div className="card-body p-4">
               <h6 className="fw-bold mb-3">Change password</h6>
 
-              {passwordSuccess && (
-                <div className="alert alert-success d-flex align-items-center gap-2 py-2 mb-3">
-                  <i className="bi bi-check-circle-fill"></i> {passwordSuccess}
-                </div>
-              )}
-              {passwordErrors.general && (
-                <div className="alert alert-danger py-2 mb-3">{passwordErrors.general}</div>
-              )}
-
               <form onSubmit={handlePasswordSave} noValidate>
                 <div className="mb-3">
-                  <label htmlFor="ap-current-password" className="form-label fw-semibold small">Current password</label>
-                  <input id="ap-current-password" name="current_password" type="password"
-                    className={`form-control ${passwordErrors.current_password ? "is-invalid" : ""}`}
-                    value={passwordData.current_password} onChange={handlePasswordChange} />
-                  {passwordErrors.current_password && <div className="invalid-feedback">{passwordErrors.current_password}</div>}
+                  <label htmlFor="ap-current-password" className="form-label fw-semibold small">
+                    Current password <span className="text-danger">*</span>
+                  </label>
+                  <div className="input-group">
+                    <input id="ap-current-password" name="current_password" type={showCurrentPassword ? "text" : "password"}
+                      className={`form-control ${passwordErrors.current_password ? "is-invalid" : ""}`}
+                      value={passwordData.current_password} onChange={handlePasswordChange} />
+                    <button type="button" className="btn btn-outline-secondary" aria-label={showCurrentPassword ? "Hide password" : "Show password"}
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}>
+                      <i className={`bi bi-${showCurrentPassword ? "eye-slash" : "eye"}`}></i>
+                    </button>
+                    {passwordErrors.current_password && (
+                      <div className="invalid-feedback d-block">
+                        <i className="bi bi-exclamation-circle me-1"></i>{passwordErrors.current_password}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="mb-3">
-                  <label htmlFor="ap-new-password" className="form-label fw-semibold small">New password</label>
-                  <input id="ap-new-password" name="new_password" type="password"
-                    className={`form-control ${passwordErrors.new_password ? "is-invalid" : ""}`}
-                    value={passwordData.new_password} onChange={handlePasswordChange} />
-                  {passwordErrors.new_password && <div className="invalid-feedback">{passwordErrors.new_password}</div>}
+                  <label htmlFor="ap-new-password" className="form-label fw-semibold small">
+                    New password <span className="text-danger">*</span>
+                  </label>
+                  <div className="input-group">
+                    <input id="ap-new-password" name="new_password" type={showNewPassword ? "text" : "password"}
+                      className={`form-control ${passwordErrors.new_password ? "is-invalid" : ""}`}
+                      value={passwordData.new_password} onChange={handlePasswordChange} />
+                    <button type="button" className="btn btn-outline-secondary" aria-label={showNewPassword ? "Hide password" : "Show password"}
+                      onClick={() => setShowNewPassword(!showNewPassword)}>
+                      <i className={`bi bi-${showNewPassword ? "eye-slash" : "eye"}`}></i>
+                    </button>
+                    {passwordErrors.new_password && (
+                      <div className="invalid-feedback d-block">
+                        <i className="bi bi-exclamation-circle me-1"></i>{passwordErrors.new_password}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="mb-4">
-                  <label htmlFor="ap-confirm-password" className="form-label fw-semibold small">Confirm new password</label>
-                  <input id="ap-confirm-password" name="new_password_confirmation" type="password"
-                    className={`form-control ${passwordErrors.new_password_confirmation ? "is-invalid" : ""}`}
-                    value={passwordData.new_password_confirmation} onChange={handlePasswordChange} />
-                  {passwordErrors.new_password_confirmation && <div className="invalid-feedback">{passwordErrors.new_password_confirmation}</div>}
+                  <label htmlFor="ap-confirm-password" className="form-label fw-semibold small">
+                    Confirm new password <span className="text-danger">*</span>
+                  </label>
+                  <div className="input-group">
+                    <input id="ap-confirm-password" name="new_password_confirmation" type={showConfirmPassword ? "text" : "password"}
+                      className={`form-control ${passwordErrors.new_password_confirmation ? "is-invalid" : ""}`}
+                      value={passwordData.new_password_confirmation} onChange={handlePasswordChange} />
+                    <button type="button" className="btn btn-outline-secondary" aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                      <i className={`bi bi-${showConfirmPassword ? "eye-slash" : "eye"}`}></i>
+                    </button>
+                    {passwordErrors.new_password_confirmation && (
+                      <div className="invalid-feedback d-block">
+                        <i className="bi bi-exclamation-circle me-1"></i>{passwordErrors.new_password_confirmation}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <button type="submit" className="btn btn-outline-success w-100 fw-semibold py-2" disabled={passwordSaving}>
                   {passwordSaving
-                    ? <><span className="spinner-border spinner-border-sm me-2"></span>Updating…</>
+                    ? <><span className="spinner-border spinner-border-sm me-2"></span>Updating...</>
                     : <><i className="bi bi-shield-lock me-2"></i>Update password</>}
                 </button>
               </form>

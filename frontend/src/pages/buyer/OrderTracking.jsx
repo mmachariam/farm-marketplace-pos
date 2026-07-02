@@ -7,6 +7,39 @@ import { useParams, Link } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
 import { apiRequest } from "../../utils/api";
 
+function EmptyState({ icon, title, text, btnLabel, btnTo, btnAction }) {
+  return (
+    <div className="sm-empty sm-fade-in">
+      <div className="sm-empty-icon">
+        <i className={`bi ${icon}`}></i>
+      </div>
+      <div className="sm-empty-title">{title}</div>
+      <p className="sm-empty-text">{text}</p>
+      {btnTo && (
+        <Link to={btnTo} className="btn btn-success btn-sm px-4">
+          {btnLabel}
+        </Link>
+      )}
+      {btnAction && (
+        <button className="btn btn-success btn-sm px-4" onClick={btnAction}>
+          {btnLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PageLoader({ text = "Loading..." }) {
+  return (
+    <div className="d-flex flex-column align-items-center justify-content-center py-5 gap-3 sm-fade-in">
+      <div className="spinner-border text-success" role="status" style={{ width: "2rem", height: "2rem" }}>
+        <span className="visually-hidden">Loading...</span>
+      </div>
+      <span className="text-muted small">{text}</span>
+    </div>
+  );
+}
+
 function OrderTracking() {
   const { orderId } = useParams();
 
@@ -107,8 +140,16 @@ function OrderTracking() {
         </Link>
       </div>
 
-      {loading && <div className="text-center text-muted py-5">Loading order…</div>}
-      {error   && <div className="alert alert-danger">{error}</div>}
+      {loading && <PageLoader text="Loading order details..." />}
+      {error && !loading && (
+        <EmptyState
+          icon="bi-exclamation-circle"
+          title="Order not found"
+          text="We couldn't load this order. It may have been removed or you may not have access."
+          btnLabel="Back to orders"
+          btnTo="/buyer/orders"
+        />
+      )}
 
       {!loading && !error && order && (
         <div className="row g-3">
@@ -201,6 +242,7 @@ function OrderTracking() {
             {/* Order summary */}
             <div className="sm-card p-4 mb-3">
               <h6 className="fw-bold mb-3">Order summary</h6>
+              <div className="table-responsive">
               <table className="table table-sm table-borderless mb-0">
                 <thead>
                   <tr className="text-muted small">
@@ -223,6 +265,7 @@ function OrderTracking() {
                   </tr>
                 </tbody>
               </table>
+              </div>
               <hr />
               <div className="d-flex justify-content-between small text-muted">
                 <span>Payment</span>
@@ -253,7 +296,7 @@ function OrderTracking() {
 
                       {rv.submitted ? (
                         <div className="alert alert-success py-2 small mb-0">
-                          ✅ Review submitted — thank you!
+                          <i className="bi bi-check-circle-fill me-1"></i>Review submitted — thank you!
                         </div>
                       ) : rv.showForm ? (
                         <form onSubmit={(e) => handleReviewSubmit(e, productId)}>
@@ -283,7 +326,7 @@ function OrderTracking() {
                               onChange={(e) => setItemReview(productId, { comment: e.target.value })}
                             />
                           </div>
-                          <div className="d-flex gap-2">
+                          <div className="d-flex flex-wrap gap-2">
                             <button
                               type="button"
                               className="btn btn-sm btn-outline-secondary"
@@ -297,7 +340,10 @@ function OrderTracking() {
                               style={{ background: "var(--sm-green)", color: "#fff", border: "none" }}
                               disabled={rv.submitting}
                             >
-                              {rv.submitting ? "Submitting…" : "Submit review"}
+                              {rv.submitting
+                                ? <><span className="spinner-border spinner-border-sm me-2"></span>Submitting...</>
+                                : <>Submit review</>
+                              }
                             </button>
                           </div>
                         </form>

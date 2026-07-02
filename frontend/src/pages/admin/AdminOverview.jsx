@@ -7,6 +7,39 @@ import { Link } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
 import { apiRequest } from "../../utils/api";
 
+function EmptyState({ icon, title, text, btnLabel, btnTo, btnAction }) {
+  return (
+    <div className="sm-empty sm-fade-in">
+      <div className="sm-empty-icon">
+        <i className={`bi ${icon}`}></i>
+      </div>
+      <div className="sm-empty-title">{title}</div>
+      <p className="sm-empty-text">{text}</p>
+      {btnTo && (
+        <Link to={btnTo} className="btn btn-success btn-sm px-4">
+          {btnLabel}
+        </Link>
+      )}
+      {btnAction && (
+        <button className="btn btn-success btn-sm px-4" onClick={btnAction}>
+          {btnLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PageLoader({ text = "Loading..." }) {
+  return (
+    <div className="d-flex flex-column align-items-center justify-content-center py-5 gap-3 sm-fade-in">
+      <div className="spinner-border text-success" role="status" style={{ width: "2rem", height: "2rem" }}>
+        <span className="visually-hidden">Loading...</span>
+      </div>
+      <span className="text-muted small">{text}</span>
+    </div>
+  );
+}
+
 function AdminOverview() {
   const navItems = [
     { label: "Overview",  icon: "bi-grid-1x2",          path: "/admin/overview",  active: true  },
@@ -39,24 +72,53 @@ function AdminOverview() {
   return (
     <DashboardLayout title="Overview" navItems={navItems}>
 
-      {loading && <div className="dash-loading">Loading overview…</div>}
-      {error   && <div className="dash-error">⚠️ {error}</div>}
+      {loading && <PageLoader text="Loading overview..." />}
+      {error && !loading && (
+        <EmptyState
+          icon="bi-exclamation-triangle"
+          title="Could not load overview"
+          text="There was a problem loading the dashboard. Please try refreshing the page."
+          btnLabel="Refresh"
+          btnAction={() => window.location.reload()}
+        />
+      )}
 
       {!loading && !error && data && (
         <>
           {/* Top-level stats */}
-          <div className="dash-stats-row">
-            <div className="dash-stat-card">
-              <div className="dash-stat-label">Total users</div>
-              <div className="dash-stat-value">{data.total_users}</div>
+          <div className="row g-3 mb-4 sm-fade-in">
+            <div className="col-6 col-md-4">
+              <div className="sm-stat-card d-flex align-items-center gap-3">
+                <div className="sm-stat-icon">
+                  <i className="bi bi-people"></i>
+                </div>
+                <div>
+                  <div className="sm-stat-value">{data.total_users}</div>
+                  <div className="sm-stat-label">Total users</div>
+                </div>
+              </div>
             </div>
-            <div className="dash-stat-card">
-              <div className="dash-stat-label">Total orders</div>
-              <div className="dash-stat-value">{Number(data.total_orders).toLocaleString()}</div>
+            <div className="col-6 col-md-4">
+              <div className="sm-stat-card d-flex align-items-center gap-3">
+                <div className="sm-stat-icon">
+                  <i className="bi bi-box-seam"></i>
+                </div>
+                <div>
+                  <div className="sm-stat-value">{Number(data.total_orders).toLocaleString()}</div>
+                  <div className="sm-stat-label">Total orders</div>
+                </div>
+              </div>
             </div>
-            <div className="dash-stat-card">
-              <div className="dash-stat-label">Total revenue</div>
-              <div className="dash-stat-value">KES {(data.total_revenue / 1000000).toFixed(1)}M</div>
+            <div className="col-6 col-md-4">
+              <div className="sm-stat-card d-flex align-items-center gap-3">
+                <div className="sm-stat-icon">
+                  <i className="bi bi-cash-coin"></i>
+                </div>
+                <div>
+                  <div className="sm-stat-value">KES {(data.total_revenue / 1000000).toFixed(1)}M</div>
+                  <div className="sm-stat-label">Total revenue</div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -86,28 +148,50 @@ function AdminOverview() {
           </div>
 
           {/* Secondary stats row */}
-          <div className="dash-stats-row" style={{ marginBottom: 20 }}>
-            <div className="dash-stat-card">
-              <div className="dash-stat-label">Farmers</div>
-              <div className="dash-stat-value">{data.total_farmers}</div>
+          <div className="row g-3 mb-4 sm-fade-in">
+            <div className="col-6 col-md-4">
+              <div className="sm-stat-card d-flex align-items-center gap-3">
+                <div className="sm-stat-icon">
+                  <i className="bi bi-person-badge"></i>
+                </div>
+                <div>
+                  <div className="sm-stat-value">{data.total_farmers}</div>
+                  <div className="sm-stat-label">Farmers</div>
+                </div>
+              </div>
             </div>
-            <div className="dash-stat-card">
-              <div className="dash-stat-label">Verified farmers</div>
-              <div className="dash-stat-value">{data.verified_farmers}</div>
+            <div className="col-6 col-md-4">
+              <div className="sm-stat-card d-flex align-items-center gap-3">
+                <div className="sm-stat-icon">
+                  <i className="bi bi-patch-check-fill"></i>
+                </div>
+                <div>
+                  <div className="sm-stat-value">{data.verified_farmers}</div>
+                  <div className="sm-stat-label">Verified farmers</div>
+                </div>
+              </div>
             </div>
-            <div className="dash-stat-card">
-              <div className="dash-stat-label">New users this month</div>
-              <div className="dash-stat-value">{data.new_users_this_month}</div>
+            <div className="col-6 col-md-4">
+              <div className="sm-stat-card d-flex align-items-center gap-3">
+                <div className="sm-stat-icon">
+                  <i className="bi bi-person-plus"></i>
+                </div>
+                <div>
+                  <div className="sm-stat-value">{data.new_users_this_month}</div>
+                  <div className="sm-stat-label">New users this month</div>
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Two-column tables */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+          <div className="row g-3">
 
             {/* Orders by status */}
-            <div>
+            <div className="col-12 col-md-6">
               <div style={{ fontSize: "14px", fontWeight: 600, marginBottom: "12px" }}>Orders by status</div>
               <div className="dash-table-wrap">
+                <div className="table-responsive">
                 <table className="dash-table">
                   <thead>
                     <tr><th>Status</th><th>Count</th></tr>
@@ -125,13 +209,15 @@ function AdminOverview() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             </div>
 
             {/* Top categories */}
-            <div>
+            <div className="col-12 col-md-6">
               <div style={{ fontSize: "14px", fontWeight: 600, marginBottom: "12px" }}>Top categories</div>
               <div className="dash-table-wrap">
+                <div className="table-responsive">
                 <table className="dash-table">
                   <thead>
                     <tr><th>Category</th><th>Orders</th></tr>
@@ -145,6 +231,7 @@ function AdminOverview() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             </div>
 

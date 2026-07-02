@@ -7,11 +7,44 @@
 // - Cart panel (sticky sidebar on large screens)
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
 import PaginationBar from "../../components/PaginationBar";
 import { useCart } from "../../context/CartContext";
 import { apiRequest } from "../../utils/api";
+
+function EmptyState({ icon, title, text, btnLabel, btnTo, btnAction }) {
+  return (
+    <div className="sm-empty sm-fade-in">
+      <div className="sm-empty-icon">
+        <i className={`bi ${icon}`}></i>
+      </div>
+      <div className="sm-empty-title">{title}</div>
+      <p className="sm-empty-text">{text}</p>
+      {btnTo && (
+        <Link to={btnTo} className="btn btn-success btn-sm px-4">
+          {btnLabel}
+        </Link>
+      )}
+      {btnAction && (
+        <button className="btn btn-success btn-sm px-4" onClick={btnAction}>
+          {btnLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PageLoader({ text = "Loading..." }) {
+  return (
+    <div className="d-flex flex-column align-items-center justify-content-center py-5 gap-3 sm-fade-in">
+      <div className="spinner-border text-success" role="status" style={{ width: "2rem", height: "2rem" }}>
+        <span className="visually-hidden">Loading...</span>
+      </div>
+      <span className="text-muted small">{text}</span>
+    </div>
+  );
+}
 
 export default function BuyerDashboard() {
   const navigate = useNavigate();
@@ -122,7 +155,7 @@ export default function BuyerDashboard() {
       ════════════════════════════════════════════════════════════ */}
       <div
         className="rounded-4 text-white mb-4 p-4 p-md-5"
-        style={{ background: "linear-gradient(135deg,#198754 0%,#20c997 100%)" }}
+        style={{ background: "linear-gradient(135deg,var(--sm-green) 0%,#20c997 100%)" }}
       >
         <div className="row align-items-center g-4">
           {/* Left copy */}
@@ -223,8 +256,9 @@ export default function BuyerDashboard() {
               <div className="card-body">
                 <div className="row g-3">
                   <div className="col-md-4">
-                    <label className="form-label small fw-semibold">Category</label>
+                    <label htmlFor="bd-filter-category" className="form-label small fw-semibold">Category</label>
                     <select
+                      id="bd-filter-category"
                       className="form-select"
                       value={categoryId}
                       onChange={(e) => setFilter(setCategoryId)(e.target.value ? Number(e.target.value) : "")}
@@ -236,13 +270,13 @@ export default function BuyerDashboard() {
                     </select>
                   </div>
                   <div className="col-md-3">
-                    <label className="form-label small fw-semibold">Min price (KES)</label>
-                    <input type="number" className="form-control" placeholder="Min"
+                    <label htmlFor="bd-filter-min-price" className="form-label small fw-semibold">Min price (KES)</label>
+                    <input id="bd-filter-min-price" type="number" className="form-control" placeholder="Min"
                       value={minPrice} onChange={(e) => setFilter(setMinPrice)(e.target.value)} />
                   </div>
                   <div className="col-md-3">
-                    <label className="form-label small fw-semibold">Max price (KES)</label>
-                    <input type="number" className="form-control" placeholder="Max"
+                    <label htmlFor="bd-filter-max-price" className="form-label small fw-semibold">Max price (KES)</label>
+                    <input id="bd-filter-max-price" type="number" className="form-control" placeholder="Max"
                       value={maxPrice} onChange={(e) => setFilter(setMaxPrice)(e.target.value)} />
                   </div>
                   <div className="col-md-2 d-flex align-items-end">
@@ -276,35 +310,30 @@ export default function BuyerDashboard() {
 
           {/* ── Product grid ── */}
           {loading ? (
-            <div className="text-center text-muted py-5">
-              <div className="spinner-border text-success mb-3" role="status"></div>
-              <div>Loading products…</div>
-            </div>
+            <PageLoader text="Loading fresh produce..." />
           ) : error ? (
             <div className="alert alert-danger">{error}</div>
           ) : products.length === 0 ? (
-            <div className="text-center py-5 bg-white rounded-4 shadow-sm">
-              <div className="rounded-circle bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3"
-                style={{ width: 80, height: 80 }}>
-                <i className="bi bi-search text-success" style={{ fontSize: "2rem" }}></i>
-              </div>
-              <h5 className="fw-bold mb-1">No products found</h5>
-              <p className="text-muted small mb-3">Try adjusting your search or filters</p>
-              <button className="btn btn-success btn-sm" onClick={clearFilters}>Clear all filters</button>
-            </div>
+            <EmptyState
+              icon="bi-search"
+              title="No produce found"
+              text="Try adjusting your search or filters to find what you're looking for."
+              btnLabel="Clear filters"
+              btnAction={clearFilters}
+            />
           ) : (
             <>
-              <div className="row g-3">
+              <div className="row g-3 sm-fade-in">
                 {products.map((p) => {
                   const qty        = cartQty(p.product_id);
                   const stock      = p.inventory?.quantity_available ?? 0;
                   const outOfStock = stock === 0;
                   const imgSrc     = p.image_url;
                   return (
-                    <div key={p.product_id} className="col-sm-6 col-lg-4">
-                      <div className="card border-0 shadow-sm h-100 product-card">
+                    <div key={p.product_id} className="col-12 col-sm-6 col-lg-4">
+                      <div className="sm-product-card h-100">
                         {/* Product image */}
-                        <div className="position-relative" style={{ height: 180, overflow: "hidden" }}>
+                        <div className="sm-product-img position-relative" style={{ height: 180 }}>
                           {imgSrc ? (
                             <img
                               src={imgSrc}

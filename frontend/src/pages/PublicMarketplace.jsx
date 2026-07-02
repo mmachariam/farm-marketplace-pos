@@ -2,11 +2,44 @@
 // Wired to GET /api/products and GET /api/categories (no auth required)
 
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import PaginationBar from "../components/PaginationBar";
 import { apiRequest } from "../utils/api";
+
+function EmptyState({ icon, title, text, btnLabel, btnTo, btnAction }) {
+  return (
+    <div className="sm-empty sm-fade-in">
+      <div className="sm-empty-icon">
+        <i className={`bi ${icon}`}></i>
+      </div>
+      <div className="sm-empty-title">{title}</div>
+      <p className="sm-empty-text">{text}</p>
+      {btnTo && (
+        <Link to={btnTo} className="btn btn-success btn-sm px-4">
+          {btnLabel}
+        </Link>
+      )}
+      {btnAction && (
+        <button className="btn btn-success btn-sm px-4" onClick={btnAction}>
+          {btnLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PageLoader({ text = "Loading..." }) {
+  return (
+    <div className="d-flex flex-column align-items-center justify-content-center py-5 gap-3 sm-fade-in">
+      <div className="spinner-border text-success" role="status" style={{ width: "2rem", height: "2rem" }}>
+        <span className="visually-hidden">Loading...</span>
+      </div>
+      <span className="text-muted small">{text}</span>
+    </div>
+  );
+}
 
 function categoryEmoji(name = "") {
   const n = name.toLowerCase();
@@ -130,7 +163,7 @@ export default function PublicMarketplace() {
       {/* ── Hero ──────────────────────────────────────────────────── */}
       <section
         className="text-white py-5"
-        style={{ background: "linear-gradient(135deg,#198754 0%,#20c997 100%)" }}
+        style={{ background: "linear-gradient(135deg,var(--sm-green) 0%,#20c997 100%)" }}
       >
         <div className="container">
           <div className="row align-items-center g-4">
@@ -217,8 +250,8 @@ export default function PublicMarketplace() {
             <div className="card-body">
               <div className="row g-3">
                 <div className="col-md-4">
-                  <label className="form-label small fw-semibold">Category</label>
-                  <select className="form-select" value={categoryId} onChange={(e) => setFilter(setCategoryId)(e.target.value)}>
+                  <label htmlFor="pm-filter-category" className="form-label small fw-semibold">Category</label>
+                  <select id="pm-filter-category" className="form-select" value={categoryId} onChange={(e) => setFilter(setCategoryId)(e.target.value)}>
                     <option value="">All categories</option>
                     {categories.map((c) => (
                       <option key={c.category_id} value={c.category_id}>{c.name}</option>
@@ -226,13 +259,13 @@ export default function PublicMarketplace() {
                   </select>
                 </div>
                 <div className="col-md-3">
-                  <label className="form-label small fw-semibold">Min price (KES)</label>
-                  <input type="number" className="form-control" placeholder="Min"
+                  <label htmlFor="pm-filter-min-price" className="form-label small fw-semibold">Min price (KES)</label>
+                  <input id="pm-filter-min-price" type="number" className="form-control" placeholder="Min"
                     value={minPrice} onChange={(e) => setFilter(setMinPrice)(e.target.value)} />
                 </div>
                 <div className="col-md-3">
-                  <label className="form-label small fw-semibold">Max price (KES)</label>
-                  <input type="number" className="form-control" placeholder="Max"
+                  <label htmlFor="pm-filter-max-price" className="form-label small fw-semibold">Max price (KES)</label>
+                  <input id="pm-filter-max-price" type="number" className="form-control" placeholder="Max"
                     value={maxPrice} onChange={(e) => setFilter(setMaxPrice)(e.target.value)} />
                 </div>
                 <div className="col-md-2 d-flex align-items-end">
@@ -266,35 +299,28 @@ export default function PublicMarketplace() {
 
         {/* Product grid */}
         {loading ? (
-          <div className="text-center py-5 text-muted">
-            <div className="spinner-border spinner-border-sm me-2 text-success" role="status"></div>
-            Loading products…
-          </div>
+          <PageLoader text="Loading marketplace..." />
         ) : products.length === 0 ? (
-          <div className="text-center py-5 bg-white rounded-4 shadow-sm">
-            <div
-              className="rounded-circle bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3"
-              style={{ width: 80, height: 80 }}
-            >
-              <i className="bi bi-search text-success" style={{ fontSize: "2rem" }}></i>
-            </div>
-            <h5 className="fw-bold mb-1">No products found</h5>
-            <p className="text-muted small mb-3">Try adjusting your search or filters</p>
-            <button className="btn btn-success btn-sm" onClick={clearFilters}>Clear all filters</button>
-          </div>
+          <EmptyState
+            icon="bi-search"
+            title="No products found"
+            text="Try adjusting your search or filter to discover fresh produce from verified farmers."
+            btnLabel="Clear all filters"
+            btnAction={clearFilters}
+          />
         ) : (
           <>
-            <div className="row g-3">
+            <div className="row g-3 sm-fade-in">
               {products.map((p) => {
                 const qty        = p.inventory?.quantity_available ?? 0;
                 const outOfStock = qty === 0;
                 const imgSrc     = p.image_url;
 
                 return (
-                  <div key={p.product_id} className="col-sm-6 col-md-4 col-lg-3">
-                    <div className="card border-0 shadow-sm h-100 product-card">
+                  <div key={p.product_id} className="col-12 col-sm-6 col-md-4 col-lg-3">
+                    <div className="sm-product-card h-100">
                       {/* Image */}
-                      <div className="position-relative bg-light" style={{ height: 180, overflow: "hidden" }}>
+                      <div className="sm-product-img position-relative" style={{ height: 180 }}>
                         {imgSrc ? (
                           <img
                             src={imgSrc}
@@ -398,7 +424,7 @@ export default function PublicMarketplace() {
         {/* Sign-in CTA */}
         <div
           className="mt-5 rounded-4 p-4 p-md-5 text-center"
-          style={{ background: "linear-gradient(135deg,#198754 0%,#20c997 100%)" }}
+          style={{ background: "linear-gradient(135deg,var(--sm-green) 0%,#20c997 100%)" }}
         >
           <h5 className="fw-bold text-white mb-2">Ready to order?</h5>
           <p className="mb-4" style={{ color: "rgba(255,255,255,0.85)", fontSize: "0.9rem" }}>
@@ -406,8 +432,7 @@ export default function PublicMarketplace() {
           </p>
           <div className="d-flex justify-content-center gap-3 flex-wrap">
             <button
-              className="btn fw-semibold px-4 py-2"
-              style={{ background: "#fff", color: "#198754", border: "none" }}
+              className="btn btn-light text-success fw-semibold px-4 py-2"
               onClick={() => navigate("/register?role=buyer")}
             >
               <i className="bi bi-person-plus me-2"></i>Create free account

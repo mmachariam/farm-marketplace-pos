@@ -4,9 +4,44 @@
 // POST /api/seller/sales
 
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
 import PaginationBar from "../../components/PaginationBar";
+import Toast from "../../components/Toast";
 import { apiRequest } from "../../utils/api";
+
+function EmptyState({ icon, title, text, btnLabel, btnTo, btnAction }) {
+  return (
+    <div className="sm-empty sm-fade-in">
+      <div className="sm-empty-icon">
+        <i className={`bi ${icon}`}></i>
+      </div>
+      <div className="sm-empty-title">{title}</div>
+      <p className="sm-empty-text">{text}</p>
+      {btnTo && (
+        <Link to={btnTo} className="btn btn-success btn-sm px-4">
+          {btnLabel}
+        </Link>
+      )}
+      {btnAction && (
+        <button className="btn btn-success btn-sm px-4" onClick={btnAction}>
+          {btnLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PageLoader({ text = "Loading..." }) {
+  return (
+    <div className="d-flex flex-column align-items-center justify-content-center py-5 gap-3 sm-fade-in">
+      <div className="spinner-border text-success" role="status" style={{ width: "2rem", height: "2rem" }}>
+        <span className="visually-hidden">Loading...</span>
+      </div>
+      <span className="text-muted small">{text}</span>
+    </div>
+  );
+}
 
 function FarmerSales() {
   const navItems = [
@@ -36,7 +71,7 @@ function FarmerSales() {
   const [paymentMethod,  setPaymentMethod]  = useState("Cash");
   const [buyerName,      setBuyerName]      = useState("");
   const [saving,         setSaving]         = useState(false);
-  const [successMsg,     setSuccessMsg]     = useState("");
+  const [toast,          setToast]          = useState(null);
   const [formErrors,     setFormErrors]     = useState({});
 
   useEffect(() => {
@@ -103,7 +138,6 @@ function FarmerSales() {
 
   const handleSubmitSale = async (e) => {
     e.preventDefault();
-    setSuccessMsg("");
     if (!validateSale()) return;
     setSaving(true);
     try {
@@ -119,7 +153,7 @@ function FarmerSales() {
         })),
       });
 
-      setSuccessMsg(`Sale recorded — KES ${saleTotal.toFixed(2)} via ${paymentMethod}`);
+      setToast({ message: `Sale recorded — KES ${saleTotal.toFixed(2)} via ${paymentMethod}`, type: "success" });
       setSaleItems([{ product_name: "", quantity: "", unit: "kg", unit_price: "" }]);
       setBuyerName("");
       setView("history");
@@ -131,7 +165,7 @@ function FarmerSales() {
         setCurrentPage(1); // triggers the useEffect → fetchSales(1)
       }
     } catch (err) {
-      alert("Failed to record sale: " + err.message);
+      setToast({ message: "Failed to record sale: " + err.message, type: "error" });
     } finally {
       setSaving(false);
     }
@@ -139,6 +173,8 @@ function FarmerSales() {
 
   return (
     <DashboardLayout title="Sales" navItems={navItems}>
+
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       {/* View toggle tabs */}
       <ul className="nav nav-tabs mb-4">
@@ -163,74 +199,84 @@ function FarmerSales() {
       {/* ===== SALES HISTORY VIEW ===== */}
       {view === "history" && (
         <>
-          {successMsg && <div className="alert alert-success py-2 small mb-3">{successMsg}</div>}
-
           {/* Summary stats */}
-          <div className="row g-3 mb-4">
+          <div className="row g-3 mb-4 sm-fade-in">
             <div className="col-6 col-md-3">
-              <div className="sm-card p-3">
-                <div className="text-muted mb-1" style={{ fontSize: "0.75rem" }}>Today's revenue</div>
-                <div className="fw-bold" style={{ fontSize: "1.2rem" }}>KES {summary.todayRevenue.toLocaleString()}</div>
+              <div className="sm-stat-card d-flex align-items-center gap-3">
+                <div className="sm-stat-icon">
+                  <i className="bi bi-cash-coin"></i>
+                </div>
+                <div>
+                  <div className="sm-stat-value">KES {summary.todayRevenue.toLocaleString()}</div>
+                  <div className="sm-stat-label">Today's revenue</div>
+                </div>
               </div>
             </div>
             <div className="col-6 col-md-3">
-              <div className="sm-card p-3">
-                <div className="text-muted mb-1" style={{ fontSize: "0.75rem" }}>Total (all time)</div>
-                <div className="fw-bold" style={{ fontSize: "1.2rem" }}>KES {summary.totalRevenue.toLocaleString()}</div>
+              <div className="sm-stat-card d-flex align-items-center gap-3">
+                <div className="sm-stat-icon">
+                  <i className="bi bi-bar-chart-line"></i>
+                </div>
+                <div>
+                  <div className="sm-stat-value">KES {summary.totalRevenue.toLocaleString()}</div>
+                  <div className="sm-stat-label">Total (all time)</div>
+                </div>
               </div>
             </div>
             <div className="col-6 col-md-3">
-              <div className="sm-card p-3">
-                <div className="text-muted mb-1" style={{ fontSize: "0.75rem" }}>Sales today</div>
-                <div className="fw-bold" style={{ fontSize: "1.2rem" }}>{summary.todaySales}</div>
+              <div className="sm-stat-card d-flex align-items-center gap-3">
+                <div className="sm-stat-icon">
+                  <i className="bi bi-receipt"></i>
+                </div>
+                <div>
+                  <div className="sm-stat-value">{summary.todaySales}</div>
+                  <div className="sm-stat-label">Sales today</div>
+                </div>
               </div>
             </div>
             <div className="col-6 col-md-3">
-              <div className="sm-card p-3">
-                <div className="text-muted mb-1" style={{ fontSize: "0.75rem" }}>Total transactions</div>
-                <div className="fw-bold" style={{ fontSize: "1.2rem" }}>{summary.totalSales}</div>
+              <div className="sm-stat-card d-flex align-items-center gap-3">
+                <div className="sm-stat-icon">
+                  <i className="bi bi-box-seam"></i>
+                </div>
+                <div>
+                  <div className="sm-stat-value">{summary.totalSales}</div>
+                  <div className="sm-stat-label">Total transactions</div>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Loading */}
-          {loading && (
-            <div className="text-center py-5">
-              <div className="spinner-border text-success" role="status"></div>
-              <div className="text-muted small mt-2">Loading sales…</div>
-            </div>
-          )}
+          {loading && <PageLoader text="Loading sales data..." />}
 
           {error && <div className="alert alert-danger">{error}</div>}
 
           {/* Empty state */}
           {!loading && !error && sales.length === 0 && (
-            <div className="text-center py-5">
-              <div
-                className="rounded-circle bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3"
-                style={{ width: 72, height: 72 }}
-              >
-                <i className="bi bi-receipt text-success" style={{ fontSize: "1.8rem" }}></i>
-              </div>
-              <h6 className="fw-semibold mb-1">No sales recorded yet</h6>
-              <p className="text-muted small mb-0">
-                Use the "Record offline sale" tab to log your farm-gate sales.
-              </p>
-            </div>
+            <EmptyState
+              icon="bi-receipt"
+              title="No sales recorded yet"
+              text="Record your first offline sale or wait for marketplace orders to come in."
+              btnLabel="Record a sale"
+              btnAction={() => setView("record")}
+            />
           )}
 
           {/* Sales table */}
           {!loading && !error && sales.length > 0 && (
-            <div className="sm-card">
-              <table className="table table-hover mb-0" style={{ fontSize: "0.875rem" }}>
+            <div className="sm-card sm-fade-in">
+              <div className="table-responsive">
+              <table className="table table-hover align-middle mb-0" style={{ fontSize: "0.875rem" }}>
+                <caption className="visually-hidden">Sales history</caption>
                 <thead className="table-light">
                   <tr>
-                    <th>Sale ID</th>
-                    <th>Date</th>
-                    <th>Buyer</th>
-                    <th>Items</th>
-                    <th>Total</th>
-                    <th>Method</th>
+                    <th scope="col">Sale ID</th>
+                    <th scope="col">Date</th>
+                    <th scope="col">Buyer</th>
+                    <th scope="col">Items</th>
+                    <th scope="col">Total</th>
+                    <th scope="col">Method</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -250,6 +296,7 @@ function FarmerSales() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
 
@@ -269,7 +316,7 @@ function FarmerSales() {
 
       {/* ===== RECORD OFFLINE SALE VIEW ===== */}
       {view === "record" && (
-        <form onSubmit={handleSubmitSale} noValidate>
+        <form onSubmit={handleSubmitSale} noValidate className="sm-fade-in">
           <div className="sm-card p-4">
             <p className="text-muted small mb-4">
               Record a sale made directly at your farm or market stall — not through the SokoMoja marketplace.
@@ -277,8 +324,9 @@ function FarmerSales() {
 
             {/* Buyer name (optional) */}
             <div className="mb-3">
-              <label className="form-label fw-semibold small">Buyer name (optional)</label>
+              <label htmlFor="sale-buyer-name" className="form-label fw-semibold small">Buyer name (optional)</label>
               <input
+                id="sale-buyer-name"
                 className="form-control"
                 placeholder="e.g. John M. or leave blank for walk-in"
                 value={buyerName}
@@ -343,6 +391,7 @@ function FarmerSales() {
                     <button
                       type="button"
                       className="btn btn-sm btn-outline-danger w-100"
+                      aria-label="Remove item"
                       onClick={() => removeItem(i)}
                     >
                       <i className="bi bi-trash"></i>
@@ -359,8 +408,8 @@ function FarmerSales() {
             {/* Payment method */}
             <div className="row g-3 mb-4">
               <div className="col-12 col-md-4">
-                <label className="form-label fw-semibold small">Payment method</label>
-                <select className="form-select" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+                <label htmlFor="sale-payment-method" className="form-label fw-semibold small">Payment method</label>
+                <select id="sale-payment-method" className="form-select" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
                   <option value="Cash">Cash</option>
                   <option value="M-Pesa">M-Pesa</option>
                 </select>

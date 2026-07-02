@@ -4,9 +4,43 @@
 // POST /api/admin/reports
 
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
 import PaginationBar from "../../components/PaginationBar";
 import { apiRequest } from "../../utils/api";
+
+function EmptyState({ icon, title, text, btnLabel, btnTo, btnAction }) {
+  return (
+    <div className="sm-empty sm-fade-in">
+      <div className="sm-empty-icon">
+        <i className={`bi ${icon}`}></i>
+      </div>
+      <div className="sm-empty-title">{title}</div>
+      <p className="sm-empty-text">{text}</p>
+      {btnTo && (
+        <Link to={btnTo} className="btn btn-success btn-sm px-4">
+          {btnLabel}
+        </Link>
+      )}
+      {btnAction && (
+        <button className="btn btn-success btn-sm px-4" onClick={btnAction}>
+          {btnLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PageLoader({ text = "Loading..." }) {
+  return (
+    <div className="d-flex flex-column align-items-center justify-content-center py-5 gap-3 sm-fade-in">
+      <div className="spinner-border text-success" role="status" style={{ width: "2rem", height: "2rem" }}>
+        <span className="visually-hidden">Loading...</span>
+      </div>
+      <span className="text-muted small">{text}</span>
+    </div>
+  );
+}
 
 function AdminReports() {
   const navItems = [
@@ -86,8 +120,8 @@ function AdminReports() {
       <div className="dash-table-wrap" style={{ padding: "20px", marginBottom: "20px" }}>
 
         {successMsg && (
-          <div style={{ background: "#EAF3DE", color: "#27500A", padding: "10px 14px", borderRadius: "8px", marginBottom: "14px", fontSize: "13px" }}>
-            {successMsg}
+          <div className="alert alert-success py-2 small mb-3">
+            <i className="bi bi-check-circle-fill me-1"></i>{successMsg}
           </div>
         )}
 
@@ -116,77 +150,73 @@ function AdminReports() {
         </div>
 
         <button
-          className="dash-btn-add"
-          style={{ background: "#1D9E75", color: "#fff", width: "auto", padding: "10px 24px", marginTop: "14px" }}
+          className="btn btn-success mt-3 d-flex align-items-center gap-2"
           onClick={handleGenerate}
           disabled={generating}
         >
           {generating ? (
-            <><span className="spinner-border spinner-border-sm me-2"></span>Generating…</>
+            <><span className="spinner-border spinner-border-sm me-2"></span>Generating...</>
           ) : (
-            "📄 Generate report"
+            <><i className="bi bi-plus-circle"></i> Generate report</>
           )}
         </button>
       </div>
 
       {/* Report history */}
-      {loading && (
-        <div className="text-center py-5">
-          <div className="spinner-border text-success" role="status"></div>
-          <div className="text-muted small mt-2">Loading reports…</div>
+      {loading && <PageLoader text="Loading reports..." />}
+
+      {error && (
+        <div className="dash-error">
+          <i className="bi bi-exclamation-triangle-fill me-1"></i>{error}
         </div>
       )}
 
-      {error && <div className="dash-error">⚠️ {error}</div>}
-
       {/* Empty state */}
       {!loading && !error && reports.length === 0 && (
-        <div className="text-center py-5">
-          <div
-            className="rounded-circle bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3"
-            style={{ width: 72, height: 72 }}
-          >
-            <i className="bi bi-file-earmark-text text-success" style={{ fontSize: "1.8rem" }}></i>
-          </div>
-          <h6 className="fw-semibold mb-1">No reports yet</h6>
-          <p className="text-muted small mb-0">Generate your first report using the form above.</p>
-        </div>
+        <EmptyState
+          icon="bi-file-earmark-bar-graph"
+          title="No reports generated yet"
+          text="Generate your first report to view marketplace analytics and summaries."
+        />
       )}
 
       {/* Reports table */}
       {!loading && !error && reports.length > 0 && (
-        <div className="dash-table-wrap">
-          <table className="dash-table">
-            <thead>
-              <tr>
-                <th>Report</th>
-                <th>Generated</th>
-                <th>By</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {reports.map((report) => (
-                <tr key={report.report_id}>
-                  <td>{report.report_type}</td>
-                  <td>
-                    {report.generated_date
-                      ? new Date(report.generated_date).toLocaleDateString("en-KE")
-                      : "—"}
-                  </td>
-                  <td>{report.generated_by}</td>
-                  <td>
-                    <button
-                      style={{ border: "none", background: "none", color: "#1D9E75", cursor: "pointer", fontSize: "13px" }}
-                      onClick={() => alert("Download coming soon")}
-                    >
-                      ⬇ Download
-                    </button>
-                  </td>
+        <div className="card border-0 shadow-sm sm-fade-in">
+          <div className="table-responsive">
+            <table className="table table-hover align-middle table-striped-columns mb-0">
+              <caption className="visually-hidden">Generated reports</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Report</th>
+                  <th scope="col">Generated</th>
+                  <th scope="col">By</th>
+                  <th scope="col"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {reports.map((report) => (
+                  <tr key={report.report_id}>
+                    <td>{report.report_type}</td>
+                    <td>
+                      {report.generated_date
+                        ? new Date(report.generated_date).toLocaleDateString("en-KE")
+                        : "—"}
+                    </td>
+                    <td>{report.generated_by}</td>
+                    <td>
+                      <button
+                        className="btn btn-link btn-sm text-success p-0 d-flex align-items-center gap-1"
+                        onClick={() => alert("Download coming soon")}
+                      >
+                        <i className="bi bi-download"></i> Download
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
+import Toast from "../../components/Toast";
 import { apiRequest } from "../../utils/api";
 
 function SellerAddProduct() {
@@ -34,7 +35,7 @@ function SellerAddProduct() {
   const [categories, setCategories] = useState([]);
   const [errors,     setErrors]     = useState({});
   const [loading,    setLoading]    = useState(false);
-  const [successMsg, setSuccessMsg] = useState("");
+  const [toast,      setToast]      = useState(null);
 
   // Load categories on mount
   useEffect(() => {
@@ -69,7 +70,6 @@ function SellerAddProduct() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSuccessMsg("");
     if (!validate()) return;
     setLoading(true);
 
@@ -86,7 +86,7 @@ function SellerAddProduct() {
         image_url:            formData.image_url.trim() || undefined,
       });
 
-      setSuccessMsg("Product listed successfully!");
+      setToast({ message: "Product listed successfully!", type: "success" });
       setTimeout(() => navigate("/seller/products"), 1200);
     } catch (err) {
       if (err.errors) {
@@ -94,7 +94,7 @@ function SellerAddProduct() {
         Object.entries(err.errors).forEach(([k, v]) => { mapped[k] = v[0]; });
         setErrors(mapped);
       } else {
-        setErrors({ general: err.message || "Failed to add product. Please try again." });
+        setToast({ message: err.message || "Failed to add product. Please try again.", type: "error" });
       }
     } finally {
       setLoading(false);
@@ -104,26 +104,20 @@ function SellerAddProduct() {
   return (
     <DashboardLayout title="Add product" navItems={navItems}>
 
-      {successMsg && (
-        <div style={{ background: "#EAF3DE", color: "#27500A", padding: "12px 16px", borderRadius: "8px", marginBottom: "16px", fontSize: "14px" }}>
-          ✅ {successMsg}
-        </div>
-      )}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-      {errors.general && (
-        <div className="auth-error-banner">⚠️ {errors.general}</div>
-      )}
-
-      <form onSubmit={handleSubmit} noValidate>
+      <form onSubmit={handleSubmit} noValidate className="sm-fade-in">
         <div className="dash-table-wrap" style={{ padding: "24px" }}>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+          <div className="row g-3">
 
             {/* ── LEFT COLUMN ── */}
-            <div>
+            <div className="col-12 col-md-6">
 
               <div className="form-group">
-                <label htmlFor="name">Product name</label>
+                <label htmlFor="name">
+                  Product name <span className="text-danger">*</span>
+                </label>
                 <input
                   id="name" name="name" type="text"
                   placeholder="e.g. Fresh Tomatoes"
@@ -131,11 +125,17 @@ function SellerAddProduct() {
                   onChange={handleChange}
                   className={errors.name ? "input-error" : ""}
                 />
-                {errors.name && <span className="field-error">{errors.name}</span>}
+                {errors.name && (
+                  <span className="field-error">
+                    <i className="bi bi-exclamation-circle me-1"></i>{errors.name}
+                  </span>
+                )}
               </div>
 
               <div className="form-group">
-                <label htmlFor="category_id">Category</label>
+                <label htmlFor="category_id">
+                  Category <span className="text-danger">*</span>
+                </label>
                 <select
                   id="category_id" name="category_id"
                   value={formData.category_id}
@@ -149,12 +149,18 @@ function SellerAddProduct() {
                     </option>
                   ))}
                 </select>
-                {errors.category_id && <span className="field-error">{errors.category_id}</span>}
+                {errors.category_id && (
+                  <span className="field-error">
+                    <i className="bi bi-exclamation-circle me-1"></i>{errors.category_id}
+                  </span>
+                )}
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "10px" }}>
-                <div className="form-group">
-                  <label htmlFor="price">Price per {formData.unit || "kg"} (KES)</label>
+              <div className="row g-2">
+                <div className="col-12 col-sm-8 form-group">
+                  <label htmlFor="price">
+                    Price per {formData.unit || "kg"} (KES) <span className="text-danger">*</span>
+                  </label>
                   <input
                     id="price" name="price" type="number" min="0" step="0.01"
                     placeholder="0.00"
@@ -162,9 +168,13 @@ function SellerAddProduct() {
                     onChange={handleChange}
                     className={errors.price ? "input-error" : ""}
                   />
-                  {errors.price && <span className="field-error">{errors.price}</span>}
+                  {errors.price && (
+                    <span className="field-error">
+                      <i className="bi bi-exclamation-circle me-1"></i>{errors.price}
+                    </span>
+                  )}
                 </div>
-                <div className="form-group">
+                <div className="col-12 col-sm-4 form-group">
                   <label htmlFor="unit">Unit of sale</label>
                   <select id="unit" name="unit" value={formData.unit} onChange={handleChange}>
                     <option value="kg">kg — Kilogram</option>
@@ -200,11 +210,13 @@ function SellerAddProduct() {
             </div>
 
             {/* ── RIGHT COLUMN ── */}
-            <div>
+            <div className="col-12 col-md-6">
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                <div className="form-group">
-                  <label htmlFor="initial_quantity">Initial stock qty</label>
+              <div className="row g-2">
+                <div className="col-12 col-sm-6 form-group">
+                  <label htmlFor="initial_quantity">
+                    Initial stock qty <span className="text-danger">*</span>
+                  </label>
                   <input
                     id="initial_quantity" name="initial_quantity" type="number" min="0"
                     placeholder="0"
@@ -212,9 +224,13 @@ function SellerAddProduct() {
                     onChange={handleChange}
                     className={errors.initial_quantity ? "input-error" : ""}
                   />
-                  {errors.initial_quantity && <span className="field-error">{errors.initial_quantity}</span>}
+                  {errors.initial_quantity && (
+                    <span className="field-error">
+                      <i className="bi bi-exclamation-circle me-1"></i>{errors.initial_quantity}
+                    </span>
+                  )}
                 </div>
-                <div className="form-group">
+                <div className="col-12 col-sm-6 form-group">
                   <label htmlFor="low_stock_threshold">Low stock alert</label>
                   <input
                     id="low_stock_threshold" name="low_stock_threshold" type="number" min="0"
@@ -263,7 +279,10 @@ function SellerAddProduct() {
             style={{ marginTop: "10px", maxWidth: "240px" }}
             disabled={loading}
           >
-            {loading ? "Saving…" : "Save listing"}
+            {loading
+              ? <><span className="spinner-border spinner-border-sm me-2"></span>Saving...</>
+              : <>Save listing</>
+            }
           </button>
 
         </div>

@@ -10,13 +10,13 @@ function Footer() {
 
           <div className="d-flex flex-wrap gap-4">
             {["About", "Contact", "Terms", "Privacy"].map((link) => (
-              <span key={link} className="text-muted" style={{ fontSize: "0.82rem", cursor: "pointer" }}>
+              <span key={link} className="text-muted small" style={{ cursor: "pointer" }}>
                 {link}
               </span>
             ))}
           </div>
 
-          <span style={{ fontSize: "0.82rem", color: "#3B6D11" }}>
+          <span className="small text-success-emphasis">
             © 2026 SokoMoja — Connecting Kenyan farmers directly
           </span>
 

@@ -5,9 +5,43 @@
 // PATCH /api/seller/orders/{id}
 
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
 import PaginationBar from "../../components/PaginationBar";
 import { apiRequest } from "../../utils/api";
+
+function EmptyState({ icon, title, text, btnLabel, btnTo, btnAction }) {
+  return (
+    <div className="sm-empty sm-fade-in">
+      <div className="sm-empty-icon">
+        <i className={`bi ${icon}`}></i>
+      </div>
+      <div className="sm-empty-title">{title}</div>
+      <p className="sm-empty-text">{text}</p>
+      {btnTo && (
+        <Link to={btnTo} className="btn btn-success btn-sm px-4">
+          {btnLabel}
+        </Link>
+      )}
+      {btnAction && (
+        <button className="btn btn-success btn-sm px-4" onClick={btnAction}>
+          {btnLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PageLoader({ text = "Loading..." }) {
+  return (
+    <div className="d-flex flex-column align-items-center justify-content-center py-5 gap-3 sm-fade-in">
+      <div className="spinner-border text-success" role="status" style={{ width: "2rem", height: "2rem" }}>
+        <span className="visually-hidden">Loading...</span>
+      </div>
+      <span className="text-muted small">{text}</span>
+    </div>
+  );
+}
 
 function SellerOrders() {
   const navItems = [
@@ -83,35 +117,27 @@ function SellerOrders() {
     <DashboardLayout title="Incoming orders" navItems={navItems}>
 
       {/* Loading */}
-      {loading && (
-        <div className="text-center py-5">
-          <div className="spinner-border text-success" role="status"></div>
-          <div className="text-muted small mt-2">Loading orders…</div>
+      {loading && <PageLoader text="Loading incoming orders..." />}
+
+      {/* Error */}
+      {error && (
+        <div className="dash-error">
+          <i className="bi bi-exclamation-triangle-fill me-1"></i>{error}
         </div>
       )}
 
-      {/* Error */}
-      {error && <div className="dash-error">⚠ {error}</div>}
-
       {/* Empty state */}
       {!loading && !error && orders.length === 0 && (
-        <div className="text-center py-5">
-          <div
-            className="rounded-circle bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3"
-            style={{ width: 72, height: 72 }}
-          >
-            <i className="bi bi-inbox text-success" style={{ fontSize: "1.8rem" }}></i>
-          </div>
-          <h6 className="fw-semibold mb-1">No orders yet</h6>
-          <p className="text-muted small mb-0">
-            Once buyers order your produce, the orders will appear here.
-          </p>
-        </div>
+        <EmptyState
+          icon="bi-box-seam"
+          title="No orders yet"
+          text="Once buyers order your produce, their orders will appear here for you to confirm."
+        />
       )}
 
       {/* Order cards */}
       {!loading && !error && orders.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        <div className="d-flex flex-column gap-3 sm-fade-in">
           {orders.map((order) => {
             const date = order.order_date
               ? new Date(order.order_date).toLocaleDateString("en-KE", { dateStyle: "medium" })
@@ -120,39 +146,31 @@ function SellerOrders() {
 
             return (
               <div className="dash-table-wrap" key={order.order_id} style={{ padding: "16px 20px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                  <span style={{ fontWeight: 600, fontSize: "14px" }}>Order #{order.order_id}</span>
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <span className="fw-semibold">Order #{order.order_id}</span>
                   <span className={`dash-badge ${getBadgeClass(order.order_status)}`}>{order.order_status}</span>
                 </div>
 
-                <div style={{ fontSize: "12px", color: "#73726c", marginBottom: "6px" }}>
+                <div className="text-muted small mb-2">
                   Buyer: {order.buyer?.name ?? "—"} · {date} · {zone}
                 </div>
-                <div style={{ fontSize: "13px", marginBottom: "10px" }}>
+                <div className="small mb-3">
                   {summariseItems(order.items)} — <strong>KES {Number(order.total_amount).toFixed(2)}</strong>
                 </div>
 
                 {order.order_status === "Pending" && (
-                  <div style={{ display: "flex", gap: "8px" }}>
+                  <div className="d-flex flex-wrap gap-2">
                     <button
+                      className="btn btn-success btn-sm"
                       onClick={() => updateOrderStatus(order.order_id, "Confirmed")}
                       disabled={updatingId === order.order_id}
-                      style={{
-                        fontSize: "13px", padding: "6px 16px", borderRadius: "8px",
-                        border: "1px solid #1D9E75", background: "#EAF3DE", color: "#27500A",
-                        cursor: "pointer", fontWeight: 500,
-                      }}
                     >
-                      {updatingId === order.order_id ? "Updating…" : "Confirm"}
+                      {updatingId === order.order_id ? "Updating..." : "Confirm"}
                     </button>
                     <button
+                      className="btn btn-outline-secondary btn-sm"
                       onClick={() => updateOrderStatus(order.order_id, "Cancelled")}
                       disabled={updatingId === order.order_id}
-                      style={{
-                        fontSize: "13px", padding: "6px 16px", borderRadius: "8px",
-                        border: "1px solid #e0ded5", background: "#fff", color: "#73726c",
-                        cursor: "pointer",
-                      }}
                     >
                       Cancel
                     </button>

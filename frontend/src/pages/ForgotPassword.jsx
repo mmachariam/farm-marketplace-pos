@@ -36,8 +36,10 @@ function ForgotPassword() {
             Enter your email and we'll send you a reset link.
           </p>
           <form onSubmit={handleSubmit} noValidate>
-            <div className="mb-3">
-              <label htmlFor="email" className="form-label fw-semibold small">Email address</label>
+            <div className="mb-4">
+              <label htmlFor="email" className="form-label fw-semibold small">
+                Email address <span className="text-danger">*</span>
+              </label>
               <input
                 id="email" type="email"
                 className={`form-control ${error ? "is-invalid" : ""}`}
@@ -45,19 +47,22 @@ function ForgotPassword() {
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); if (error) setError(""); }}
               />
-              {error && <div className="invalid-feedback">{error}</div>}
+              {error && (
+                <div className="invalid-feedback d-block">
+                  <i className="bi bi-exclamation-circle me-1"></i>{error}
+                </div>
+              )}
             </div>
             <button
               type="submit"
-              className="btn w-100 fw-semibold py-2 mb-3"
-              style={{ background: "var(--sm-green)", color: "#fff", border: "none" }}
+              className="btn btn-success w-100 fw-semibold py-2 mb-3"
               disabled={loading}
             >
-              {loading ? <><span className="spinner-border spinner-border-sm me-2"></span>Sending…</> : "Send reset link"}
+              {loading ? <><span className="spinner-border spinner-border-sm me-2"></span>Sending...</> : "Send reset link"}
             </button>
           </form>
           <p className="text-center text-muted" style={{ fontSize: "0.875rem" }}>
-            Remembered it? <Link to="/login" style={{ color: "var(--sm-green)" }}>Back to sign in</Link>
+            Remembered it? <Link to="/login" className="text-success">Back to sign in</Link>
           </p>
         </>
       ) : (
@@ -68,7 +73,7 @@ function ForgotPassword() {
             If an account exists for <strong>{email}</strong>, we've sent a password reset link.
             It expires in 60 minutes.
           </p>
-          <Link to="/login" className="btn w-100 fw-semibold py-2" style={{ background: "var(--sm-green)", color: "#fff", border: "none" }}>
+          <Link to="/login" className="btn btn-success w-100 fw-semibold py-2">
             Back to sign in
           </Link>
         </>

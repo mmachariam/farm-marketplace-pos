@@ -27,13 +27,8 @@ export default function Hero() {
           >
             {/* Badge */}
             <div
-              className="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-2 mb-4"
-              style={{
-                background: "#d1e7dd",
-                border: "1px solid #a3cfbb",
-                fontSize: "0.82rem",
-                color: "#0a3622",
-              }}
+              className="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-2 mb-4 bg-success-subtle border border-success-subtle text-success-emphasis"
+              style={{ fontSize: "0.82rem" }}
             >
               <i className="bi bi-patch-check-fill text-success"></i>
               Direct from Kenyan farms
@@ -50,7 +45,7 @@ export default function Hero() {
               }}
             >
               Fresh produce,{" "}
-              <span style={{ color: "#198754" }}>no middlemen</span>
+              <span className="text-success">no middlemen</span>
             </h1>
 
             {/* Subtext */}
@@ -95,11 +90,9 @@ export default function Hero() {
               ].map((stat) => (
                 <div key={stat.label} className="d-flex align-items-center gap-2">
                   <div
-                    className="rounded-circle d-flex align-items-center justify-content-center"
+                    className="rounded-circle d-flex align-items-center justify-content-center bg-success-subtle text-success"
                     style={{
                       width: 36, height: 36,
-                      background: "#d1e7dd",
-                      color: "#198754",
                       fontSize: "0.9rem",
                       flexShrink: 0,
                     }}
@@ -132,6 +125,7 @@ export default function Hero() {
             <img
               src="/src/assets/hero.png"
               alt="Fresh produce basket"
+              className="sm-float"
               style={{
                 width: "100%",
                 height: "100%",

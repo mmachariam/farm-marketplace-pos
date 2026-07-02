@@ -3,6 +3,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import DashboardLayout from "../../components/DashboardLayout";
+import Toast from "../../components/Toast";
 import { apiRequest, apiUpload } from "../../utils/api";
 import { getUser, setUser } from "../../utils/auth";
 
@@ -29,7 +30,7 @@ export default function BuyerProfile() {
 
   const [errors,     setErrors]     = useState({});
   const [saving,     setSaving]     = useState(false);
-  const [successMsg, setSuccessMsg] = useState("");
+  const [toast,      setToast]      = useState(null);
 
   // Load full profile from backend on mount
   useEffect(() => {
@@ -93,7 +94,6 @@ export default function BuyerProfile() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    setSuccessMsg("");
     if (!validate()) return;
 
     setSaving(true);
@@ -123,8 +123,7 @@ export default function BuyerProfile() {
       });
 
       setImageFile(null); // clear pending file
-      setSuccessMsg("Profile updated successfully.");
-      setTimeout(() => setSuccessMsg(""), 4000);
+      setToast({ message: "Profile updated successfully.", type: "success" });
 
     } catch (err) {
       if (err.errors) {
@@ -134,7 +133,7 @@ export default function BuyerProfile() {
         if (err.errors.phone_number) mapped.phone = err.errors.phone_number[0];
         setErrors(mapped);
       } else {
-        setErrors({ general: err.message || "Failed to update profile." });
+        setToast({ message: err.message || "Failed to update profile.", type: "error" });
       }
     } finally {
       setSaving(false);
@@ -148,14 +147,7 @@ export default function BuyerProfile() {
       <div className="row justify-content-center">
         <div className="col-12 col-md-8 col-lg-6">
 
-          {successMsg && (
-            <div className="alert alert-success d-flex align-items-center gap-2 py-2 mb-4">
-              <i className="bi bi-check-circle-fill"></i> {successMsg}
-            </div>
-          )}
-          {errors.general && (
-            <div className="alert alert-danger py-2 mb-4">{errors.general}</div>
-          )}
+          {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
           <div className="card border-0 shadow-sm">
             <div className="card-body p-4">
@@ -163,21 +155,17 @@ export default function BuyerProfile() {
               {/* Avatar section */}
               <div className="d-flex align-items-center gap-4 mb-4 pb-4 border-bottom">
                 <div className="position-relative flex-shrink-0">
-                  <div className="rounded-circle overflow-hidden d-flex align-items-center justify-content-center fw-bold text-white"
-                    style={{ width: 80, height: 80,
-                      background: imagePreview ? "transparent" : "#198754",
-                      fontSize: "1.8rem", border: "3px solid #d1e7dd" }}>
+                  <div className="sm-avatar-lg">
                     {imagePreview
-                      ? <img src={imagePreview} alt="Profile"
-                          style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ? <img src={imagePreview} alt={formData.name || "Profile"} />
                       : initial}
                   </div>
                   <button type="button"
-                    className="btn btn-success btn-sm rounded-circle position-absolute d-flex align-items-center justify-content-center p-0 shadow"
-                    style={{ width: 26, height: 26, bottom: 0, right: 0 }}
+                    className="sm-avatar-camera shadow-sm border-0"
                     onClick={() => fileInputRef.current?.click()}
-                    title="Change profile photo">
-                    <i className="bi bi-camera-fill" style={{ fontSize: "0.65rem" }}></i>
+                    title="Change profile photo"
+                    aria-label="Change profile photo">
+                    <i className="bi bi-camera-fill"></i>
                   </button>
                 </div>
 
@@ -205,21 +193,33 @@ export default function BuyerProfile() {
               {/* Form */}
               <form onSubmit={handleSave} noValidate>
                 <div className="mb-3">
-                  <label htmlFor="bp-name" className="form-label fw-semibold small">Full name</label>
+                  <label htmlFor="bp-name" className="form-label fw-semibold small">
+                    Full name <span className="text-danger">*</span>
+                  </label>
                   <input id="bp-name" name="name" type="text"
                     className={`form-control ${errors.name ? "is-invalid" : ""}`}
                     placeholder="e.g. Jane Wambui"
                     value={formData.name} onChange={handleChange} />
-                  {errors.name && <div className="invalid-feedback">{errors.name}</div>}
+                  {errors.name && (
+                    <div className="invalid-feedback d-block">
+                      <i className="bi bi-exclamation-circle me-1"></i>{errors.name}
+                    </div>
+                  )}
                 </div>
 
                 <div className="mb-3">
-                  <label htmlFor="bp-email" className="form-label fw-semibold small">Email address</label>
+                  <label htmlFor="bp-email" className="form-label fw-semibold small">
+                    Email address <span className="text-danger">*</span>
+                  </label>
                   <input id="bp-email" name="email" type="email"
                     className={`form-control ${errors.email ? "is-invalid" : ""}`}
                     placeholder="you@example.com"
                     value={formData.email} onChange={handleChange} />
-                  {errors.email && <div className="invalid-feedback">{errors.email}</div>}
+                  {errors.email && (
+                    <div className="invalid-feedback d-block">
+                      <i className="bi bi-exclamation-circle me-1"></i>{errors.email}
+                    </div>
+                  )}
                 </div>
 
                 <div className="mb-3">
@@ -230,9 +230,13 @@ export default function BuyerProfile() {
                       className={`form-control ${errors.phone ? "is-invalid" : ""}`}
                       placeholder="0712 345 678"
                       value={formData.phone} onChange={handleChange} />
-                    {errors.phone && <div className="invalid-feedback">{errors.phone}</div>}
+                    {errors.phone && (
+                      <div className="invalid-feedback d-block">
+                        <i className="bi bi-exclamation-circle me-1"></i>{errors.phone}
+                      </div>
+                    )}
                   </div>
-                  <div className="form-text">Used for M-Pesa payments and order notifications</div>
+                  <div className="form-text text-muted">Used for M-Pesa payments and order notifications</div>
                 </div>
 
                 <div className="mb-4">
@@ -248,7 +252,7 @@ export default function BuyerProfile() {
 
                 <button type="submit" className="btn btn-success w-100 fw-semibold py-2" disabled={saving}>
                   {saving
-                    ? <><span className="spinner-border spinner-border-sm me-2"></span>Saving…</>
+                    ? <><span className="spinner-border spinner-border-sm me-2"></span>Saving...</>
                     : <><i className="bi bi-check-circle me-2"></i>Save changes</>}
                 </button>
               </form>

@@ -288,15 +288,16 @@ export default function PublicMarketplace() {
               {products.map((p) => {
                 const qty        = p.inventory?.quantity_available ?? 0;
                 const outOfStock = qty === 0;
+                const imgSrc     = p.image_url;
 
                 return (
                   <div key={p.product_id} className="col-sm-6 col-md-4 col-lg-3">
                     <div className="card border-0 shadow-sm h-100 product-card">
                       {/* Image */}
                       <div className="position-relative bg-light" style={{ height: 180, overflow: "hidden" }}>
-                        {p.image_url ? (
+                        {imgSrc ? (
                           <img
-                            src={p.image_url}
+                            src={imgSrc}
                             alt={p.name}
                             className="w-100 h-100 object-fit-cover"
                             style={{ borderRadius: "12px 12px 0 0" }}
@@ -305,7 +306,7 @@ export default function PublicMarketplace() {
                         ) : null}
                         <div
                           className="w-100 h-100 d-flex align-items-center justify-content-center"
-                          style={{ borderRadius: "12px 12px 0 0", fontSize: "3rem", display: p.image_url ? "none" : "flex" }}
+                          style={{ borderRadius: "12px 12px 0 0", fontSize: "3rem", display: imgSrc ? "none" : "flex" }}
                         >
                           {categoryEmoji(p.category?.name)}
                         </div>
@@ -348,12 +349,17 @@ export default function PublicMarketplace() {
                           <div className="d-flex justify-content-between align-items-center mb-2">
                             <span className="fw-bold text-success" style={{ fontSize: "1rem" }}>
                               KES {p.price}
-                              <span className="text-muted fw-normal" style={{ fontSize: "0.75rem" }}>/{p.unit}</span>
+                              <span className="text-muted fw-normal" style={{ fontSize: "0.75rem" }}>/{p.unit || "kg"}</span>
                             </span>
                             {!outOfStock && (
                               <span className="text-muted" style={{ fontSize: "0.72rem" }}>{qty} left</span>
                             )}
                           </div>
+                          {p.bunch_contains && (
+                            <div className="text-muted mb-2" style={{ fontSize: "0.7rem" }}>
+                              Per {p.unit}: {p.bunch_contains}
+                            </div>
+                          )}
 
                           {outOfStock ? (
                             <button className="btn btn-outline-secondary btn-sm w-100" disabled>

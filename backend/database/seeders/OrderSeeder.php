@@ -45,7 +45,7 @@ class OrderSeeder extends Seeder
             status:    'Delivered',
             date:      $now->copy()->subDays(25),
             items:     [['Tomatoes', 5], ['Kale (Sukuma Wiki)', 3]],
-            zone:      'Kiambu Zone',
+            zone:      'Kiambu',
             payMethod: 'M-Pesa',
             payStatus: 'Completed',
             receipt:   'QJK2X3Y4Z5'
@@ -69,7 +69,7 @@ class OrderSeeder extends Seeder
             status:    'Delivered',
             date:      $now->copy()->subDays(20),
             items:     [['Irish Potatoes', 10], ['Carrots', 5]],
-            zone:      'Kiambu Zone',
+            zone:      'Kiambu',
             payMethod: 'Cash',
             payStatus: 'Completed'
         );
@@ -80,7 +80,7 @@ class OrderSeeder extends Seeder
             status:    'Delivered',
             date:      $now->copy()->subDays(18),
             items:     [['Fresh Milk', 10], ['Free Range Eggs', 30]],
-            zone:      'Kisumu Zone',
+            zone:      'Kisumu',
             payMethod: 'M-Pesa',
             payStatus: 'Completed',
             receipt:   'SLM4Z5A6B7'
@@ -92,7 +92,7 @@ class OrderSeeder extends Seeder
             status:    'Delivered',
             date:      $now->copy()->subDays(15),
             items:     [['Dry Maize', 20], ['Sweet Potatoes', 10]],
-            zone:      'Meru Zone',
+            zone:      'Meru',
             payMethod: 'M-Pesa',
             payStatus: 'Completed',
             receipt:   'TMN5A6B7C8'
@@ -104,7 +104,7 @@ class OrderSeeder extends Seeder
             status:    'Delivered',
             date:      $now->copy()->subDays(12),
             items:     [['Wheat', 15], ['Red Kidney Beans', 5]],
-            zone:      'Nakuru Zone',
+            zone:      'Nakuru',
             payMethod: 'M-Pesa',
             payStatus: 'Completed',
             receipt:   'UNO6B7C8D9'
@@ -116,7 +116,7 @@ class OrderSeeder extends Seeder
             status:    'Confirmed',
             date:      $now->copy()->subDays(8),
             items:     [['Broccoli', 3], ['Spinach', 2], ['Tomatoes', 5]],
-            zone:      'Kiambu Zone',
+            zone:      'Kiambu',
             payMethod: 'M-Pesa',
             payStatus: 'Completed',
             receipt:   'VOP7C8D9E0'
@@ -139,7 +139,7 @@ class OrderSeeder extends Seeder
             status:    'Confirmed',
             date:      $now->copy()->subDays(6),
             items:     [['Green Grams (Ndengu)', 3], ['Groundnuts', 2]],
-            zone:      'Kiambu Zone',
+            zone:      'Kiambu',
             payMethod: 'M-Pesa',
             payStatus: 'Completed',
             receipt:   'WPQ8D9E0F1'
@@ -151,7 +151,7 @@ class OrderSeeder extends Seeder
             status:    'Pending',
             date:      $now->copy()->subDays(4),
             items:     [['Avocados', 6], ['Passion Fruits', 3]],
-            zone:      'Kisumu Zone',
+            zone:      'Kisumu',
             payMethod: 'M-Pesa',
             payStatus: 'Pending'
         );
@@ -162,7 +162,7 @@ class OrderSeeder extends Seeder
             status:    'Pending',
             date:      $now->copy()->subDays(3),
             items:     [['Millet', 5], ['Dry Maize', 10]],
-            zone:      'Meru Zone',
+            zone:      'Meru',
             payMethod: 'M-Pesa',
             payStatus: 'Pending'
         );
@@ -173,7 +173,7 @@ class OrderSeeder extends Seeder
             status:    'Pending',
             date:      $now->copy()->subDays(2),
             items:     [['Fresh Milk', 5], ['Free Range Eggs', 20]],
-            zone:      'Nakuru Zone',
+            zone:      'Nakuru',
             payMethod: 'Cash',
             payStatus: 'Pending'
         );
@@ -184,7 +184,7 @@ class OrderSeeder extends Seeder
             status:    'Pending',
             date:      $now->copy()->subDays(1),
             items:     [['Sweet Potatoes', 8], ['Irish Potatoes', 10]],
-            zone:      'Kiambu Zone',
+            zone:      'Kiambu',
             payMethod: 'M-Pesa',
             payStatus: 'Pending'
         );
@@ -206,7 +206,7 @@ class OrderSeeder extends Seeder
             status:    'Cancelled',
             date:      $now->copy()->subDays(9),
             items:     [['Red Kidney Beans', 5]],
-            zone:      'Kiambu Zone',
+            zone:      'Kiambu',
             payMethod: 'Cash',
             payStatus: 'Failed'
         );

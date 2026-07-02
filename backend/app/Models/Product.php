@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Review;
 
@@ -18,6 +19,7 @@ class Product extends Model
         'description',
         'price',
         'unit',
+        'bunch_contains',
         'image_url',
         'status',
     ];
@@ -25,6 +27,25 @@ class Product extends Model
     protected $casts = [
         'price' => 'decimal:2',
     ];
+
+    // Exposes image_url as a full URL so the frontend never needs to
+    // know the backend's host/port. Controlled by APP_URL.
+    protected function imageUrl(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value) {
+                if (!$value) {
+                    return null;
+                }
+
+                if (str_starts_with($value, 'http')) {
+                    return $value;
+                }
+
+                return url($value);
+            }
+        );
+    }
 
     public function seller()
     {

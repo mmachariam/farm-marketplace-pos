@@ -24,6 +24,7 @@ function SellerAddProduct() {
     category_id:       "",
     price:             "",
     unit:              "kg",
+    bunch_contains:    "",
     initial_quantity:  "",
     low_stock_threshold: "10",
     description:       "",
@@ -62,8 +63,6 @@ function SellerAddProduct() {
       newErrors.initial_quantity = "Initial stock quantity is required";
     else if (isNaN(formData.initial_quantity) || Number(formData.initial_quantity) < 0)
       newErrors.initial_quantity = "Enter a valid stock quantity";
-    if (!formData.description.trim())
-      newErrors.description = "Description is required";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -78,9 +77,10 @@ function SellerAddProduct() {
       await apiRequest("/seller/products", "POST", {
         name:                 formData.name,
         category_id:          Number(formData.category_id),
-        description:          formData.description,
+        description:          formData.description || null,
         price:                Number(formData.price),
         unit:                 formData.unit,
+        bunch_contains:       formData.bunch_contains || null,
         initial_quantity:     Number(formData.initial_quantity),
         low_stock_threshold:  formData.low_stock_threshold !== "" ? Number(formData.low_stock_threshold) : undefined,
         image_url:            formData.image_url.trim() || undefined,
@@ -154,7 +154,7 @@ function SellerAddProduct() {
 
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "10px" }}>
                 <div className="form-group">
-                  <label htmlFor="price">Price per unit (KES)</label>
+                  <label htmlFor="price">Price per {formData.unit || "kg"} (KES)</label>
                   <input
                     id="price" name="price" type="number" min="0" step="0.01"
                     placeholder="0.00"
@@ -165,16 +165,37 @@ function SellerAddProduct() {
                   {errors.price && <span className="field-error">{errors.price}</span>}
                 </div>
                 <div className="form-group">
-                  <label htmlFor="unit">Unit</label>
+                  <label htmlFor="unit">Unit of sale</label>
                   <select id="unit" name="unit" value={formData.unit} onChange={handleChange}>
-                    <option value="kg">kg</option>
-                    <option value="crate">crate</option>
-                    <option value="bunch">bunch</option>
-                    <option value="litre">litre</option>
-                    <option value="piece">piece</option>
+                    <option value="kg">kg — Kilogram</option>
+                    <option value="bunch">bunch — Bundle</option>
+                    <option value="piece">piece — Individual item</option>
+                    <option value="litre">litre — Litre</option>
+                    <option value="crate">crate — Crate</option>
+                    <option value="bag">bag — Bag (e.g. 90kg bag)</option>
+                    <option value="dozen">dozen — 12 pieces</option>
                   </select>
                 </div>
               </div>
+
+              {["bunch", "piece", "crate", "dozen"].includes(formData.unit) && (
+                <div className="form-group">
+                  <label htmlFor="bunch_contains">
+                    What does one {formData.unit} contain? <span style={{ color: "#999", fontWeight: 400 }}>(optional)</span>
+                  </label>
+                  <input
+                    id="bunch_contains" name="bunch_contains" type="text"
+                    placeholder={
+                      formData.unit === "bunch" ? "e.g. Approx 500g, 6-8 stalks" :
+                      formData.unit === "piece" ? "e.g. 1 head approx 400g" :
+                      formData.unit === "crate" ? "e.g. 30 pieces" :
+                      "e.g. 12 eggs"
+                    }
+                    value={formData.bunch_contains}
+                    onChange={handleChange}
+                  />
+                </div>
+              )}
 
             </div>
 
@@ -205,10 +226,10 @@ function SellerAddProduct() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="description">Description</label>
+                <label htmlFor="description">Description <span style={{ color: "#999", fontWeight: 400 }}>(optional)</span></label>
                 <textarea
                   id="description" name="description"
-                  placeholder="Describe your produce — freshness, harvest date, growing method…"
+                  placeholder="Briefly describe your produce — quality, origin, how it was grown (optional)"
                   value={formData.description}
                   onChange={handleChange}
                   rows={4}

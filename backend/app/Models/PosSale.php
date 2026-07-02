@@ -14,6 +14,7 @@ class PosSale extends Model
         'buyer_name',
         'payment_method',
         'total_amount',
+        'sale_date',
     ];
 
     protected $casts = [

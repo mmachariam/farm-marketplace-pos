@@ -32,7 +32,7 @@ function FarmerSales() {
   const [perPage,      setPerPage]      = useState(15);
 
   // New sale form state
-  const [saleItems,      setSaleItems]      = useState([{ product_name: "", quantity: "", unit_price: "" }]);
+  const [saleItems,      setSaleItems]      = useState([{ product_name: "", quantity: "", unit: "kg", unit_price: "" }]);
   const [paymentMethod,  setPaymentMethod]  = useState("Cash");
   const [buyerName,      setBuyerName]      = useState("");
   const [saving,         setSaving]         = useState(false);
@@ -77,7 +77,7 @@ function FarmerSales() {
   };
 
   const addItem = () => {
-    setSaleItems((prev) => [...prev, { product_name: "", quantity: "", unit_price: "" }]);
+    setSaleItems((prev) => [...prev, { product_name: "", quantity: "", unit: "kg", unit_price: "" }]);
   };
 
   const removeItem = (index) => {
@@ -113,12 +113,14 @@ function FarmerSales() {
         items: saleItems.map((i) => ({
           product_name: i.product_name,
           quantity:     parseFloat(i.quantity),
+          unit:         i.unit,
           unit_price:   parseFloat(i.unit_price),
+          subtotal:     parseFloat(i.quantity) * parseFloat(i.unit_price),
         })),
       });
 
       setSuccessMsg(`Sale recorded — KES ${saleTotal.toFixed(2)} via ${paymentMethod}`);
-      setSaleItems([{ product_name: "", quantity: "", unit_price: "" }]);
+      setSaleItems([{ product_name: "", quantity: "", unit: "kg", unit_price: "" }]);
       setBuyerName("");
       setView("history");
 
@@ -297,7 +299,7 @@ function FarmerSales() {
                   />
                   {formErrors[`name_${i}`] && <div className="invalid-feedback">Required</div>}
                 </div>
-                <div className="col-5 col-md-3">
+                <div className="col-5 col-md-2">
                   <div className="input-group input-group-sm">
                     <input
                       type="number" min="0" step="0.1"
@@ -306,16 +308,31 @@ function FarmerSales() {
                       value={item.quantity}
                       onChange={(e) => handleItemChange(i, "quantity", e.target.value)}
                     />
-                    <span className="input-group-text">kg</span>
                   </div>
                 </div>
-                <div className="col-5 col-md-3">
+                <div className="col-4 col-md-2">
+                  <select
+                    className="form-select form-select-sm"
+                    style={{ width: 90 }}
+                    value={item.unit}
+                    onChange={(e) => handleItemChange(i, "unit", e.target.value)}
+                  >
+                    <option value="kg">kg</option>
+                    <option value="bunch">bunch</option>
+                    <option value="piece">piece</option>
+                    <option value="litre">litre</option>
+                    <option value="crate">crate</option>
+                    <option value="bag">bag</option>
+                    <option value="dozen">dozen</option>
+                  </select>
+                </div>
+                <div className="col-5 col-md-2">
                   <div className="input-group input-group-sm">
                     <span className="input-group-text">KES</span>
                     <input
                       type="number" min="0"
                       className={`form-control ${formErrors[`price_${i}`] ? "is-invalid" : ""}`}
-                      placeholder="Price/kg"
+                      placeholder={`Price/${item.unit}`}
                       value={item.unit_price}
                       onChange={(e) => handleItemChange(i, "unit_price", e.target.value)}
                     />

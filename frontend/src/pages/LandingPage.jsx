@@ -3,6 +3,7 @@
 // with a "View all products →" button linking to /marketplace.
 // Visitors can go directly to marketplace from the navbar OR from this section.
 
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Hero from "../components/Hero";
@@ -11,26 +12,28 @@ import HowItWorks from "../components/HowItWorks";
 import RoleCards from "../components/RoleCards";
 import ZonesSection from "../components/ZonesSection";
 import Footer from "../components/Footer";
+import { apiRequest } from "../utils/api";
 
-// Four featured products shown as a preview teaser on the landing page
-const featuredProducts = [
-  { id: 1, name: "Fresh Tomatoes",  farmer: "John Kamau",   price: 120, unit: "kg",    rating: 4.8, reviews: 24, is_organic: true,  is_verified: true,  image: "https://images.unsplash.com/photo-1546470427-227c7369a9b9?w=400&h=300&fit=crop" },
-  { id: 2, name: "Fresh Avocados",  farmer: "John Kamau",   price: 180, unit: "kg",    rating: 4.9, reviews: 45, is_organic: true,  is_verified: true,  image: "https://images.unsplash.com/photo-1523049673857-eb18f1d7b5a8?w=400&h=300&fit=crop" },
-  { id: 3, name: "Free Range Eggs", farmer: "Mary Wanjiku", price: 15,  unit: "piece", rating: 5.0, reviews: 67, is_organic: true,  is_verified: true,  image: "https://images.unsplash.com/photo-1598965675045-45c5e72c7d05?w=400&h=300&fit=crop" },
-  { id: 4, name: "Passion Fruits",  farmer: "John Kamau",   price: 200, unit: "kg",    rating: 4.7, reviews: 19, is_organic: true,  is_verified: true,  image: "https://images.unsplash.com/photo-1559181567-c3190ca9951b?w=400&h=300&fit=crop" },
-];
-
-function Stars({ rating }) {
-  const full = Math.round(rating);
-  return (
-    <span style={{ color: "#ffc107", fontSize: "0.78rem", letterSpacing: 1 }}>
-      {"★".repeat(full)}
-      <span style={{ color: "#dee2e6" }}>{"★".repeat(5 - full)}</span>
-    </span>
-  );
+function categoryEmoji(name = "") {
+  const n = name.toLowerCase();
+  if (n.includes("vegetable"))  return "🥬";
+  if (n.includes("fruit"))      return "🍎";
+  if (n.includes("grain") || n.includes("cereal")) return "🌽";
+  if (n.includes("dairy") || n.includes("egg"))    return "🥛";
+  if (n.includes("root") || n.includes("tuber"))   return "🥔";
+  if (n.includes("legume"))     return "🫘";
+  return "🌿";
 }
 
 export default function LandingPage() {
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+
+  useEffect(() => {
+    apiRequest("/products?per_page=4")
+      .then((res) => setFeaturedProducts(res.data || []))
+      .catch(() => {});
+  }, []);
+
   return (
     <div>
       <Navbar />
@@ -66,26 +69,26 @@ export default function LandingPage() {
           {/* Featured product cards */}
           <div className="row g-3 mb-4">
             {featuredProducts.map((p) => (
-              <div key={p.id} className="col-sm-6 col-lg-3">
+              <div key={p.product_id} className="col-sm-6 col-lg-3">
                 <div className="card border-0 shadow-sm h-100 product-card">
                   {/* Image */}
-                  <div className="position-relative" style={{ height: 160, overflow: "hidden" }}>
-                    <img
-                      src={p.image}
-                      alt={p.name}
-                      className="w-100 h-100 object-fit-cover"
-                      style={{ borderRadius: "12px 12px 0 0" }}
-                      onError={(e) => { e.target.style.display = "none"; }}
-                    />
-                    {/* Badges */}
-                    <div className="position-absolute top-0 start-0 p-2">
-                      {p.is_organic && (
-                        <span className="badge bg-success d-flex align-items-center gap-1" style={{ fontSize: "0.68rem" }}>
-                          <i className="bi bi-flower2"></i> Organic
-                        </span>
-                      )}
+                  <div className="position-relative bg-light" style={{ height: 160, overflow: "hidden" }}>
+                    {p.image_url ? (
+                      <img
+                        src={p.image_url}
+                        alt={p.name}
+                        className="w-100 h-100 object-fit-cover"
+                        style={{ borderRadius: "12px 12px 0 0" }}
+                        onError={(e) => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }}
+                      />
+                    ) : null}
+                    <div
+                      className="w-100 h-100 d-flex align-items-center justify-content-center"
+                      style={{ borderRadius: "12px 12px 0 0", fontSize: "2.5rem", display: p.image_url ? "none" : "flex" }}
+                    >
+                      {categoryEmoji(p.category?.name)}
                     </div>
-                    {p.is_verified && (
+                    {p.seller?.is_verified && (
                       <div className="position-absolute top-0 end-0 p-2">
                         <span className="badge bg-white text-success shadow-sm d-flex align-items-center gap-1" style={{ fontSize: "0.68rem" }}>
                           <i className="bi bi-patch-check-fill"></i> Verified
@@ -96,13 +99,9 @@ export default function LandingPage() {
 
                   <div className="card-body d-flex flex-column p-3">
                     <h6 className="fw-bold mb-1" style={{ fontSize: "0.9rem" }}>{p.name}</h6>
-                    <div className="d-flex align-items-center gap-1 mb-1">
-                      <i className="bi bi-person-circle text-muted" style={{ fontSize: "0.72rem" }}></i>
-                      <span className="text-muted" style={{ fontSize: "0.75rem" }}>{p.farmer}</span>
-                    </div>
                     <div className="d-flex align-items-center gap-1 mb-2">
-                      <Stars rating={p.rating} />
-                      <span className="text-muted" style={{ fontSize: "0.72rem" }}>({p.reviews})</span>
+                      <i className="bi bi-person-circle text-muted" style={{ fontSize: "0.72rem" }}></i>
+                      <span className="text-muted" style={{ fontSize: "0.75rem" }}>{p.seller?.name}</span>
                     </div>
                     <div className="d-flex justify-content-between align-items-center mt-auto">
                       <span className="fw-bold text-success" style={{ fontSize: "1rem" }}>

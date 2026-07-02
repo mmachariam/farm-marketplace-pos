@@ -100,6 +100,7 @@ class ProductController extends Controller
             'description' => $p->description,
             'price'       => (float) $p->price,
             'unit'        => $p->unit,
+            'bunch_contains' => $p->bunch_contains,
             'image_url'   => $p->image_url,
             'status'      => $p->status,
             'category'    => $p->category ? [

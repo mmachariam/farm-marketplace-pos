@@ -48,6 +48,7 @@ class SellerSalesController extends Controller
             'items'                   => 'required|array|min:1',
             'items.*.product_name'    => 'required|string|max:100',
             'items.*.quantity'        => 'required|numeric|min:0.1',
+            'items.*.unit'            => 'sometimes|string|max:30|in:kg,bunch,piece,litre,crate,bag,dozen',
             'items.*.unit_price'      => 'required|numeric|min:1',
         ]);
 

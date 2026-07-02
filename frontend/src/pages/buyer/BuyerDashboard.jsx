@@ -299,14 +299,15 @@ export default function BuyerDashboard() {
                   const qty        = cartQty(p.product_id);
                   const stock      = p.inventory?.quantity_available ?? 0;
                   const outOfStock = stock === 0;
+                  const imgSrc     = p.image_url;
                   return (
                     <div key={p.product_id} className="col-sm-6 col-lg-4">
                       <div className="card border-0 shadow-sm h-100 product-card">
                         {/* Product image */}
                         <div className="position-relative" style={{ height: 180, overflow: "hidden" }}>
-                          {p.image_url ? (
+                          {imgSrc ? (
                             <img
-                              src={p.image_url}
+                              src={imgSrc}
                               alt={p.name}
                               className="w-100 h-100 object-fit-cover"
                               style={{ borderRadius: "12px 12px 0 0" }}
@@ -319,7 +320,7 @@ export default function BuyerDashboard() {
                           {/* Fallback emoji placeholder */}
                           <div
                             className="w-100 h-100 d-flex align-items-center justify-content-center bg-light"
-                            style={{ borderRadius: "12px 12px 0 0", fontSize: "3rem", display: p.image_url ? "none" : "flex" }}
+                            style={{ borderRadius: "12px 12px 0 0", fontSize: "3rem", display: imgSrc ? "none" : "flex" }}
                           >
                             {categoryEmoji(p.category?.name)}
                           </div>
@@ -376,13 +377,18 @@ export default function BuyerDashboard() {
                               <span className="fw-bold text-success" style={{ fontSize: "1rem" }}>
                                 KES {p.price}
                                 <span className="text-muted fw-normal" style={{ fontSize: "0.75rem" }}>
-                                  /{p.unit}
+                                  /{p.unit || "kg"}
                                 </span>
                               </span>
                               <span className="text-muted" style={{ fontSize: "0.72rem" }}>
                                 {stock} {p.unit} left
                               </span>
                             </div>
+                            {p.bunch_contains && (
+                              <div className="text-muted mb-2" style={{ fontSize: "0.7rem" }}>
+                                Per {p.unit}: {p.bunch_contains}
+                              </div>
+                            )}
 
                             {outOfStock ? (
                               <button className="btn btn-outline-secondary btn-sm w-100" disabled>

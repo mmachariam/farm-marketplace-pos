@@ -37,9 +37,10 @@ class SellerProductController extends Controller
         $validator = Validator::make($request->all(), [
             'name'                => 'required|string|max:150',
             'category_id'         => 'required|exists:categories,category_id',
-            'description'         => 'required|string',
+            'description'         => 'nullable|string|max:1000',
             'price'               => 'required|numeric|min:0.01',
-            'unit'                => 'required|string|max:30',
+            'unit'                => 'required|string|max:30|in:kg,bunch,piece,litre,crate,bag,dozen',
+            'bunch_contains'      => 'nullable|string|max:100',
             'initial_quantity'    => 'required|numeric|min:0',
             'low_stock_threshold' => 'nullable|numeric|min:0',
             'image_url'           => 'nullable|url|max:255',
@@ -61,6 +62,7 @@ class SellerProductController extends Controller
             'description' => $request->description,
             'price'       => $request->price,
             'unit'        => $request->unit,
+            'bunch_contains' => $request->bunch_contains,
             'image_url'   => $request->image_url,
             'status'      => $request->get('status', 'active'),
         ]);
@@ -87,13 +89,14 @@ class SellerProductController extends Controller
             ->firstOrFail();
 
         $validator = Validator::make($request->all(), [
-            'name'        => 'sometimes|string|max:150',
-            'category_id' => 'sometimes|exists:categories,category_id',
-            'description' => 'sometimes|string',
-            'price'       => 'sometimes|numeric|min:0.01',
-            'unit'        => 'sometimes|string|max:30',
-            'image_url'   => 'nullable|url|max:255',
-            'status'      => 'sometimes|in:active,inactive',
+            'name'           => 'sometimes|string|max:150',
+            'category_id'    => 'sometimes|exists:categories,category_id',
+            'description'    => 'nullable|string|max:1000',
+            'price'          => 'sometimes|numeric|min:0.01',
+            'unit'           => 'sometimes|string|max:30|in:kg,bunch,piece,litre,crate,bag,dozen',
+            'bunch_contains' => 'nullable|string|max:100',
+            'image_url'      => 'nullable|url|max:255',
+            'status'         => 'sometimes|in:active,inactive',
         ]);
 
         if ($validator->fails()) {
@@ -103,7 +106,7 @@ class SellerProductController extends Controller
             ], 422);
         }
 
-        $product->fill($request->only(['name', 'category_id', 'description', 'price', 'unit', 'image_url', 'status']));
+        $product->fill($request->only(['name', 'category_id', 'description', 'price', 'unit', 'bunch_contains', 'image_url', 'status']));
         $product->save();
 
         $product->load(['category', 'inventory']);
@@ -123,6 +126,7 @@ class SellerProductController extends Controller
             'description' => $p->description,
             'price'       => (float) $p->price,
             'unit'        => $p->unit,
+            'bunch_contains' => $p->bunch_contains,
             'image_url'   => $p->image_url,
             'status'      => $p->status,
             'category'    => $p->category ? [

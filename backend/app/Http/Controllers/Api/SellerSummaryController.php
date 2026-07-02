@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
+use App\Models\PosSale;
 use App\Models\Review;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -52,7 +53,7 @@ class SellerSummaryController extends Controller
             $dayStart = $day->copy()->startOfDay();
             $dayEnd   = $day->copy()->endOfDay();
 
-            $amount = Payment::whereIn('order_id', function ($sub) use ($sellerId, $dayStart, $dayEnd) {
+            $onlineAmount = Payment::whereIn('order_id', function ($sub) use ($sellerId, $dayStart, $dayEnd) {
                     $sub->select('orders.order_id')
                         ->from('orders')
                         ->join('order_items', 'orders.order_id', '=', 'order_items.order_id')
@@ -64,9 +65,14 @@ class SellerSummaryController extends Controller
                 ->where('payment_status', 'Completed')
                 ->sum('amount');
 
+            // Offline (farm-gate / POS) sales recorded directly by the farmer
+            $offlineAmount = PosSale::where('seller_id', $sellerId)
+                ->whereBetween('sale_date', [$dayStart, $dayEnd])
+                ->sum('total_amount');
+
             $weeklySales[] = [
                 'day'    => $days[$i],
-                'amount' => (float) $amount,
+                'amount' => (float) $onlineAmount + (float) $offlineAmount,
             ];
         }
 

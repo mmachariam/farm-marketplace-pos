@@ -12,6 +12,7 @@ import PublicMarketplace  from "./pages/PublicMarketplace";   // ← NEW
 import LoginPage          from "./pages/LoginPage";
 import RegisterPage       from "./pages/RegisterPage";
 import ForgotPassword     from "./pages/ForgotPassword";
+import ResetPassword      from "./pages/ResetPassword";
 import NotFound           from "./pages/NotFound";
 
 // Buyer pages
@@ -53,6 +54,7 @@ export default function App() {
           <Route path="/login"        element={<LoginPage />} />
           <Route path="/register"     element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* ── BUYER ──────────────────────────────────────────── */}
           <Route path="/buyer/dashboard" element={

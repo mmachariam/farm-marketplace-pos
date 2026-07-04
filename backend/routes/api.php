@@ -25,11 +25,16 @@ use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\AdminReportController;
 use App\Http\Controllers\Api\AdminProfileController;
 use App\Http\Controllers\Api\AdminFarmerController;
+use App\Http\Controllers\Api\PasswordResetController;
 
 // ── Auth (public — no token needed) ─────────────────────────────────
 Route::prefix('auth')->group(function () {
     Route::post('register', [AuthController::class, 'register']);
     Route::post('login',    [AuthController::class, 'login']);
+
+    // Forgot / reset password — public
+    Route::post('forgot-password', [PasswordResetController::class, 'sendResetLink']);
+    Route::post('reset-password',  [PasswordResetController::class, 'resetPassword']);
 
     // These require a valid token
     Route::middleware('auth:api')->group(function () {

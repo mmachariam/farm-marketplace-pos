@@ -3,25 +3,27 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
+import { apiRequest } from "../utils/api";
 
 function ForgotPassword() {
-  const [email, setEmail]         = useState("");
-  const [error, setError]         = useState("");
-  const [loading, setLoading]     = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [email, setEmail]               = useState("");
+  const [error, setError]               = useState("");
+  const [generalError, setGeneralError] = useState("");
+  const [loading, setLoading]           = useState(false);
+  const [submitted, setSubmitted]       = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email) { setError("Email address is required"); return; }
     if (!/\S+@\S+\.\S+/.test(email)) { setError("Enter a valid email address"); return; }
     setError("");
+    setGeneralError("");
     setLoading(true);
     try {
-      // TODO: await apiRequest("/auth/forgot-password", "POST", { email });
-      await new Promise((r) => setTimeout(r, 1000));
+      await apiRequest("/auth/forgot-password", "POST", { email });
       setSubmitted(true);
-    } catch {
-      setSubmitted(true); // still show success to avoid email enumeration
+    } catch (err) {
+      setGeneralError(err.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -35,6 +37,12 @@ function ForgotPassword() {
           <p className="text-muted mb-4" style={{ fontSize: "0.875rem" }}>
             Enter your email and we'll send you a reset link.
           </p>
+          {generalError && (
+            <div className="alert alert-danger d-flex align-items-center gap-2 py-2 small mb-3">
+              <i className="bi bi-exclamation-triangle-fill"></i>
+              {generalError}
+            </div>
+          )}
           <form onSubmit={handleSubmit} noValidate>
             <div className="mb-4">
               <label htmlFor="email" className="form-label fw-semibold small">

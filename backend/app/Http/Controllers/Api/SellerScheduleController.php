@@ -45,6 +45,17 @@ class SellerScheduleController extends Controller
         $user   = auth()->user();
         $zoneId = $request->zone_id ?? $user->zone_id;
 
+        $duplicate = Schedule::where('seller_id', $user->user_id)
+            ->where('day', $request->day)
+            ->where('arrival_time', $request->arrival_time)
+            ->exists();
+
+        if ($duplicate) {
+            return response()->json([
+                'message' => 'You already have a schedule entry for this day and time.',
+            ], 422);
+        }
+
         $schedule = Schedule::create([
             'seller_id'    => $user->user_id,
             'day'          => $request->day,

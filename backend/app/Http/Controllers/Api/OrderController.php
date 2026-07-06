@@ -51,16 +51,21 @@ class OrderController extends Controller
 
                 // Validate stock and build item list inside the transaction
                 foreach ($itemInputs as $input) {
+                    $product = Product::with('seller')->find($input['product_id']);
+
+                    if (!$product || $product->status !== 'active' || !$product->seller
+                        || $product->seller->status !== 'active' || !$product->seller->is_verified) {
+                        throw new \Exception('Product is no longer available: ' . ($product?->name ?? '#' . $input['product_id']));
+                    }
+
                     $inventory = Inventory::where('product_id', $input['product_id'])
                         ->lockForUpdate()
                         ->first();
 
                     if (!$inventory || $inventory->quantity_available < $input['quantity']) {
-                        $product = Product::find($input['product_id']);
-                        throw new \Exception('Insufficient stock for: ' . ($product?->name ?? 'product #' . $input['product_id']));
+                        throw new \Exception('Insufficient stock for: ' . $product->name);
                     }
 
-                    $product   = Product::findOrFail($input['product_id']);
                     $unitPrice = (float) $product->price;
                     $subtotal  = $unitPrice * $input['quantity'];
                     $total    += $subtotal;
@@ -156,6 +161,40 @@ class OrderController extends Controller
         return response()->json([
             'data' => $this->formatOrder($order),
         ]);
+    }
+
+    // ── PATCH /api/orders/{id}/cancel ────────────────────────────────
+    // Lets a buyer release a still-pending, unpaid order — used when M-Pesa
+    // initiation fails or the STK push itself fails/is cancelled, so the
+    // reserved stock isn't left in limbo.
+    public function cancelPending($id)
+    {
+        $order = Order::where('buyer_id', auth()->id())
+            ->with('orderItems.product.inventory', 'payment')
+            ->findOrFail($id);
+
+        if ($order->order_status !== 'Pending') {
+            return response()->json([
+                'message' => 'Only pending orders can be cancelled this way.',
+            ], 422);
+        }
+
+        if ($order->payment && $order->payment->payment_status === 'Completed') {
+            return response()->json([
+                'message' => 'A paid order cannot be cancelled this way.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($order) {
+            foreach ($order->orderItems as $item) {
+                $item->product?->inventory?->increment('quantity_available', $item->quantity);
+            }
+
+            $order->order_status = 'Cancelled';
+            $order->save();
+        });
+
+        return response()->json(['message' => 'Order cancelled.']);
     }
 
     // ── Helper ───────────────────────────────────────────────────────

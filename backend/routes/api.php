@@ -29,12 +29,13 @@ use App\Http\Controllers\Api\PasswordResetController;
 
 // ── Auth (public — no token needed) ─────────────────────────────────
 Route::prefix('auth')->group(function () {
-    Route::post('register', [AuthController::class, 'register']);
-    Route::post('login',    [AuthController::class, 'login']);
+    // Throttled — unmitigated brute-force/credential-stuffing/reset-spam otherwise
+    Route::post('register', [AuthController::class, 'register'])->middleware('throttle:5,1');
+    Route::post('login',    [AuthController::class, 'login'])->middleware('throttle:5,1');
 
     // Forgot / reset password — public
-    Route::post('forgot-password', [PasswordResetController::class, 'sendResetLink']);
-    Route::post('reset-password',  [PasswordResetController::class, 'resetPassword']);
+    Route::post('forgot-password', [PasswordResetController::class, 'sendResetLink'])->middleware('throttle:5,1');
+    Route::post('reset-password',  [PasswordResetController::class, 'resetPassword'])->middleware('throttle:5,1');
 
     // These require a valid token
     Route::middleware('auth:api')->group(function () {
@@ -71,9 +72,10 @@ Route::middleware('auth:api')->group(function () {
 Route::middleware(['auth:api', 'role:buyer'])->group(function () {
 
     // Orders
-    Route::post('orders',        [OrderController::class, 'store']);
-    Route::get('orders',         [OrderController::class, 'index']);
-    Route::get('orders/{id}',    [OrderController::class, 'show']);
+    Route::post('orders',            [OrderController::class, 'store']);
+    Route::get('orders',             [OrderController::class, 'index']);
+    Route::get('orders/{id}',        [OrderController::class, 'show']);
+    Route::patch('orders/{id}/cancel', [OrderController::class, 'cancelPending']);
 
     // Payments
     Route::post('payments/mpesa/initiate',    [MpesaController::class, 'initiate']);

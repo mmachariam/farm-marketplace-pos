@@ -113,6 +113,14 @@ class MpesaController extends Controller
         $checkoutRequestId = $body['CheckoutRequestID'] ?? null;
         $resultCode        = $body['ResultCode'] ?? 1;
 
+        // mpesa_checkout_request_id is NULL for every Cash/Card order and for
+        // M-Pesa orders whose STK push hasn't been sent yet. Matching on a
+        // null id would resolve to whereNull() and hit an unrelated payment,
+        // so a callback missing this field is rejected outright.
+        if (!$checkoutRequestId) {
+            return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
+        }
+
         $payment = Payment::where('mpesa_checkout_request_id', $checkoutRequestId)->first();
 
         if ($payment) {

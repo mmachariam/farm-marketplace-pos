@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Inventory;
 use App\Models\PosSale;
 use App\Models\PosSaleItem;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -59,7 +61,10 @@ class SellerSalesController extends Controller
             ], 422);
         }
 
-        $sale = DB::transaction(function () use ($request) {
+        $inventoryUpdated = false;
+
+        $sale = DB::transaction(function () use ($request, &$inventoryUpdated) {
+            $sellerId    = auth()->id();
             $items       = $request->items;
             $totalAmount = 0;
 
@@ -68,7 +73,7 @@ class SellerSalesController extends Controller
             }
 
             $sale = PosSale::create([
-                'seller_id'      => auth()->id(),
+                'seller_id'      => $sellerId,
                 'buyer_name'     => $request->buyer_name,
                 'payment_method' => $request->payment_method,
                 'total_amount'   => $totalAmount,
@@ -87,6 +92,27 @@ class SellerSalesController extends Controller
                     'unit_price'   => $price,
                     'subtotal'     => $subtotal,
                 ]);
+
+                // Offline sales only carry a free-text product_name, so match it
+                // against this seller's catalogue (case-insensitive, trimmed) to
+                // find inventory to deduct. No match just means an unlisted
+                // product — the sale still records, silently skipping stock.
+                $product = Product::where('seller_id', $sellerId)
+                    ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower(trim($item['product_name']))])
+                    ->first();
+
+                if ($product) {
+                    $inventory = Inventory::where('product_id', $product->product_id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($inventory) {
+                        $inventory->update([
+                            'quantity_available' => max(0, (float) $inventory->quantity_available - $qty),
+                        ]);
+                        $inventoryUpdated = true;
+                    }
+                }
             }
 
             return $sale;
@@ -94,10 +120,16 @@ class SellerSalesController extends Controller
 
         $sale->load('items');
 
-        return response()->json([
+        $response = [
             'data'    => $this->formatSale($sale),
             'message' => 'Sale recorded successfully',
-        ], 201);
+        ];
+
+        if ($inventoryUpdated) {
+            $response['inventory_updated'] = true;
+        }
+
+        return response()->json($response, 201);
     }
 
     // ── Helper ───────────────────────────────────────────────────────

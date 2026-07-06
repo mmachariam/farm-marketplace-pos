@@ -65,6 +65,13 @@ class AdminUserController extends Controller
             ], 403);
         }
 
+        // Admins cannot suspend/activate other administrators
+        if ($user->role === 'admin') {
+            return response()->json([
+                'message' => 'Administrator accounts cannot be modified this way.',
+            ], 403);
+        }
+
         $user->status = $request->status;
         $user->save();
 
@@ -108,6 +115,13 @@ class AdminUserController extends Controller
     public function resetPassword($id)
     {
         $user = User::findOrFail($id);
+
+        // Admins cannot reset another administrator's password
+        if ($user->role === 'admin') {
+            return response()->json([
+                'message' => 'Administrator accounts cannot be modified this way.',
+            ], 403);
+        }
 
         $defaultPassword = config('sokomoja.default_user_password');
 

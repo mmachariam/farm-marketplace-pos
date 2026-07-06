@@ -40,7 +40,7 @@ class SellerOrderController extends Controller
     public function update(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'status' => 'required|in:Confirmed,Cancelled',
+            'status' => 'required|in:Confirmed,Cancelled,Delivered',
         ]);
 
         if ($validator->fails()) {
@@ -62,9 +62,15 @@ class SellerOrderController extends Controller
 
         $order = Order::findOrFail($id);
 
-        if ($order->order_status !== 'Pending') {
+        // Pending -> Confirmed/Cancelled, Confirmed -> Delivered. No other transition is valid.
+        $allowedTransitions = [
+            'Pending'   => ['Confirmed', 'Cancelled'],
+            'Confirmed' => ['Delivered'],
+        ];
+
+        if (!in_array($request->status, $allowedTransitions[$order->order_status] ?? [], true)) {
             return response()->json([
-                'message' => 'Only pending orders can be confirmed or cancelled.',
+                'message' => "Order cannot be changed from {$order->order_status} to {$request->status}.",
             ], 422);
         }
 

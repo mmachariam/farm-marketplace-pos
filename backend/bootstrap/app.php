@@ -17,6 +17,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
         ]);
+
+        // Blocks any request as soon as a suspended user's existing JWT is
+        // presented — status was previously only checked at login time.
+        $middleware->api(append: [
+            \App\Http\Middleware\EnsureAccountActive::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         // Return JSON for auth errors (instead of redirect to /login)

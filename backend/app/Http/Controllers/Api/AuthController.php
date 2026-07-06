@@ -18,7 +18,8 @@ class AuthController extends Controller
             'name'         => 'required|string|max:100',
             'email'        => 'required|email|max:100|unique:users,email',
             'password'     => 'required|string|min:8|confirmed', // requires password_confirmation field
-            'role'         => 'required|in:buyer,seller,admin',
+            // Admin accounts are seeded/created by existing admins only (AdminProfileController@createAdmin) — never self-registered.
+            'role'         => 'required|in:buyer,seller',
             'phone_number' => 'nullable|string|max:20',
             'region'       => 'nullable|string|max:100',
             'zone_id'      => 'nullable|exists:pickup_zones,zone_id',
@@ -70,15 +71,11 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
-        if (!$user) {
+        // Deliberately generic — distinguishing "unknown email" from "wrong
+        // password" lets an attacker enumerate registered accounts.
+        if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([
-                'message' => 'Account not found.',
-            ], 401);
-        }
-
-        if (!Hash::check($request->password, $user->password)) {
-            return response()->json([
-                'message' => 'Incorrect password.',
+                'message' => 'Invalid email or password.',
             ], 401);
         }
 

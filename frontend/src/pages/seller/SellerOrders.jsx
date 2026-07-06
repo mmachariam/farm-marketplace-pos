@@ -176,6 +176,18 @@ function SellerOrders() {
                     </button>
                   </div>
                 )}
+
+                {order.order_status === "Confirmed" && (
+                  <div className="d-flex flex-wrap gap-2">
+                    <button
+                      className="btn btn-success btn-sm"
+                      onClick={() => updateOrderStatus(order.order_id, "Delivered")}
+                      disabled={updatingId === order.order_id}
+                    >
+                      {updatingId === order.order_id ? "Updating..." : "Mark delivered"}
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}

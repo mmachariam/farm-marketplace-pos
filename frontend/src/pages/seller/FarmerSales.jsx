@@ -73,10 +73,19 @@ function FarmerSales() {
   const [saving,         setSaving]         = useState(false);
   const [toast,          setToast]          = useState(null);
   const [formErrors,     setFormErrors]     = useState({});
+  const [myProducts,     setMyProducts]     = useState([]);
 
   useEffect(() => {
     fetchSales(currentPage);
   }, [currentPage]);
+
+  // Powers the product-name datalist below so a typo doesn't silently skip
+  // inventory deduction (matching in the backend is exact, case-insensitive).
+  useEffect(() => {
+    apiRequest("/seller/products")
+      .then((res) => setMyProducts(res.data ?? []))
+      .catch(() => setMyProducts([]));
+  }, []);
 
   async function fetchSales(page = 1) {
     try {
@@ -336,6 +345,11 @@ function FarmerSales() {
 
             {/* Sale items */}
             <label className="form-label fw-semibold small">Items sold</label>
+            <datalist id="farmer-sales-product-list">
+              {myProducts.map((p) => (
+                <option key={p.product_id} value={p.name} />
+              ))}
+            </datalist>
             {saleItems.map((item, i) => (
               <div className="row g-2 mb-2 align-items-start" key={i}>
                 <div className="col-12 col-md-5">
@@ -344,6 +358,7 @@ function FarmerSales() {
                     placeholder="Product name (e.g. Broccoli)"
                     value={item.product_name}
                     onChange={(e) => handleItemChange(i, "product_name", e.target.value)}
+                    list="farmer-sales-product-list"
                   />
                   {formErrors[`name_${i}`] && <div className="invalid-feedback">Required</div>}
                 </div>

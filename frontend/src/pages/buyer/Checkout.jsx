@@ -85,6 +85,7 @@ function Checkout() {
         } else if (payment_status === "Failed") {
           stopPolling();
           setLoading(false);
+          apiRequest(`/orders/${orderId}/cancel`, "PATCH").catch(() => {});
           setErrors({ general: "Payment failed or was cancelled. Please try again." });
         }
         // if still Pending, keep polling
@@ -101,6 +102,8 @@ function Checkout() {
     if (!validate()) return;
     setLoading(true);
 
+    let orderId = null;
+
     try {
       // 1. Place the order
       const orderPayload = {
@@ -115,7 +118,7 @@ function Checkout() {
       };
 
       const orderRes = await apiRequest("/orders", "POST", orderPayload);
-      const orderId  = orderRes.data.order_id;
+      orderId = orderRes.data.order_id;
 
       // 2. For non-M-Pesa payments, we're done
       if (paymentMethod !== "M-Pesa") {
@@ -140,6 +143,15 @@ function Checkout() {
 
     } catch (err) {
       setLoading(false);
+
+      // The order was created but the STK push itself never went out —
+      // release the reserved stock instead of leaving a zombie Pending order.
+      if (orderId) {
+        apiRequest(`/orders/${orderId}/cancel`, "PATCH").catch(() => {});
+        setErrors({ general: "Could not send the M-Pesa prompt. Your order was not placed — please try again." });
+        return;
+      }
+
       setErrors({ general: err.message || "Failed to place order. Please try again." });
     }
   };

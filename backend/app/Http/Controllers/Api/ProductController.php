@@ -65,6 +65,8 @@ class ProductController extends Controller
     public function show($id)
     {
         $product = Product::with(['seller', 'category', 'inventory', 'zone', 'reviews.buyer'])
+            ->where('status', 'active')
+            ->whereHas('seller', fn($q) => $q->where('status', 'active')->where('is_verified', true))
             ->findOrFail($id);
 
         return response()->json([

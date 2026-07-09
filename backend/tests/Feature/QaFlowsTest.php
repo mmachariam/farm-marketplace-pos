@@ -430,6 +430,27 @@ class QaFlowsTest extends TestCase
         $this->assertEquals('Delivered', $deliver->json('data.order_status'));
     }
 
+    public function test_delivery_status_stays_in_sync_with_order_status(): void
+    {
+        $seller  = $this->makeUser(['role' => 'seller', 'is_verified' => true]);
+        $buyer   = $this->makeUser(['role' => 'buyer']);
+        $product = $this->makeProduct($seller, 'Watermelon', 20, 70);
+
+        $order = $this->actingAs($buyer, 'api')->postJson('/api/orders', [
+            'items' => [['product_id' => $product->product_id, 'quantity' => 1]],
+            'delivery_address' => '123 Test Street',
+            'payment_method' => 'Cash',
+        ])->json('data');
+
+        $this->assertEquals('Pending', \App\Models\Delivery::where('order_id', $order['order_id'])->first()->delivery_status);
+
+        $this->actingAs($seller, 'api')->patchJson("/api/seller/orders/{$order['order_id']}", ['status' => 'Confirmed']);
+        $this->assertEquals('In Transit', \App\Models\Delivery::where('order_id', $order['order_id'])->first()->delivery_status);
+
+        $this->actingAs($seller, 'api')->patchJson("/api/seller/orders/{$order['order_id']}", ['status' => 'Delivered']);
+        $this->assertEquals('Delivered', \App\Models\Delivery::where('order_id', $order['order_id'])->first()->delivery_status);
+    }
+
     public function test_pending_order_cannot_jump_straight_to_delivered(): void
     {
         $seller  = $this->makeUser(['role' => 'seller', 'is_verified' => true]);

@@ -88,6 +88,15 @@ class SellerOrderController extends Controller
         $order->order_status = $request->status;
         $order->save();
 
+        $deliveryStatus = [
+            'Confirmed' => 'In Transit',
+            'Delivered' => 'Delivered',
+        ][$request->status] ?? null;
+
+        if ($deliveryStatus && $order->delivery) {
+            $order->delivery->update(['delivery_status' => $deliveryStatus]);
+        }
+
         $order->load(['orderItems.product', 'buyer', 'payment', 'delivery.pickupZone']);
 
         return response()->json([

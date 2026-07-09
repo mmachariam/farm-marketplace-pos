@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Inventory;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class SellerProductController extends Controller
@@ -54,24 +55,28 @@ class SellerProductController extends Controller
             ], 422);
         }
 
-        $product = Product::create([
-            'seller_id'   => $user->user_id,
-            'category_id' => $request->category_id,
-            'zone_id'     => $user->zone_id,
-            'name'        => $request->name,
-            'description' => $request->description,
-            'price'       => $request->price,
-            'unit'        => $request->unit,
-            'bunch_contains' => $request->bunch_contains,
-            'image_url'   => $request->image_url,
-            'status'      => $request->get('status', 'active'),
-        ]);
+        $product = DB::transaction(function () use ($request, $user) {
+            $product = Product::create([
+                'seller_id'   => $user->user_id,
+                'category_id' => $request->category_id,
+                'zone_id'     => $user->zone_id,
+                'name'        => $request->name,
+                'description' => $request->description,
+                'price'       => $request->price,
+                'unit'        => $request->unit,
+                'bunch_contains' => $request->bunch_contains,
+                'image_url'   => $request->image_url,
+                'status'      => $request->get('status', 'active'),
+            ]);
 
-        Inventory::create([
-            'product_id'          => $product->product_id,
-            'quantity_available'  => $request->initial_quantity,
-            'low_stock_threshold' => $request->get('low_stock_threshold', 10),
-        ]);
+            Inventory::create([
+                'product_id'          => $product->product_id,
+                'quantity_available'  => $request->initial_quantity,
+                'low_stock_threshold' => $request->get('low_stock_threshold', 10),
+            ]);
+
+            return $product;
+        });
 
         $product->load(['category', 'inventory']);
 

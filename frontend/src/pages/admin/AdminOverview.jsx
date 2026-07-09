@@ -29,6 +29,13 @@ function EmptyState({ icon, title, text, btnLabel, btnTo, btnAction }) {
   );
 }
 
+function formatRevenue(amount) {
+  const n = Number(amount) || 0;
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + "M";
+  if (n >= 1000) return (n / 1000).toFixed(1) + "K";
+  return n.toLocaleString();
+}
+
 function PageLoader({ text = "Loading..." }) {
   return (
     <div className="d-flex flex-column align-items-center justify-content-center py-5 gap-3 sm-fade-in">
@@ -115,7 +122,7 @@ function AdminOverview() {
                   <i className="bi bi-cash-coin"></i>
                 </div>
                 <div>
-                  <div className="sm-stat-value">KES {(data.total_revenue / 1000000).toFixed(1)}M</div>
+                  <div className="sm-stat-value">KES {formatRevenue(data.total_revenue)}</div>
                   <div className="sm-stat-label">Total revenue</div>
                 </div>
               </div>

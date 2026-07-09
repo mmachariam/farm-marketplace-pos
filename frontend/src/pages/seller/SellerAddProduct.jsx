@@ -87,15 +87,22 @@ function SellerAddProduct() {
         image_url:            formData.image_url.trim() || undefined,
       });
 
-      setToast({ message: "Product listed successfully!", type: "success" });
-      setTimeout(() => navigate("/seller/products"), 1200);
+      setToast({ message: "Product added successfully.", type: "success" });
+      setTimeout(() => navigate("/seller/products"), 3000);
     } catch (err) {
-      if (err.errors) {
+      if (err.errors && Object.keys(err.errors).length > 0) {
         const mapped = {};
         Object.entries(err.errors).forEach(([k, v]) => { mapped[k] = v[0]; });
         setErrors(mapped);
       } else {
-        setToast({ message: err.message || "Failed to add product. Please try again.", type: "error" });
+        // A specific, actionable message from the backend (e.g. "your
+        // account must be verified") is more useful than a generic one —
+        // only fall back to the generic message when none was provided.
+        const isGeneric = !err.message || err.message.startsWith("Request failed");
+        setToast({
+          message: isGeneric ? "Unable to add product. Please try again." : err.message,
+          type: "error",
+        });
       }
     } finally {
       setLoading(false);
@@ -268,7 +275,13 @@ function SellerAddProduct() {
                   placeholder="https://…"
                   value={formData.image_url}
                   onChange={handleChange}
+                  className={errors.image_url ? "input-error" : ""}
                 />
+                {errors.image_url && (
+                  <span className="field-error">
+                    <i className="bi bi-exclamation-circle me-1"></i>{errors.image_url}
+                  </span>
+                )}
               </div>
 
             </div>

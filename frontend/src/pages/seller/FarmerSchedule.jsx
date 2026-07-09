@@ -51,6 +51,7 @@ function FarmerSchedule() {
     { label: "Sales",      icon: "bi-receipt",        path: "/seller/sales",      active: false },
     { label: "Schedule",   icon: "bi-calendar-check", path: "/seller/schedule",   active: true  },
     { label: "Orders",     icon: "bi-box-seam",       path: "/seller/orders",     active: false },
+    { label: "Reports",    icon: "bi-file-earmark-text", path: "/seller/reports", active: false },
     { label: "Profile",    icon: "bi-person-circle",  path: "/seller/profile",    active: false },
   ];
 

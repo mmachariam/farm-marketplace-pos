@@ -51,4 +51,15 @@ return Application::configure(basePath: dirname(__DIR__))
                 ], 404);
             }
         });
+
+        // Return JSON (instead of a redirect back) for validation errors on
+        // API routes, regardless of the client's Accept header
+        $exceptions->render(function (\Illuminate\Validation\ValidationException $e, $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Validation failed',
+                    'errors'  => $e->errors(),
+                ], 422);
+            }
+        });
     })->create();

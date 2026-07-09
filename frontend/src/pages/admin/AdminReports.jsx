@@ -1,35 +1,20 @@
 // AdminReports — SokoMoja
-// Admin generates and views paginated reports.
-// GET  /api/admin/reports?page=N
-// POST /api/admin/reports
+// Live report viewer (Zone Performance / User Activity / Top Selling
+// Products) with the 6 shared date-filter presets, real PDF/Excel
+// downloads, and a history log of previously generated/exported reports.
+//
+// GET  /api/admin/reports/zone-performance | user-activity | top-products
+// GET  /api/admin/reports/export?type=&period=&format=pdf|xlsx
+// GET  /api/admin/reports              (history list)
 
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
 import PaginationBar from "../../components/PaginationBar";
-import { apiRequest } from "../../utils/api";
-
-function EmptyState({ icon, title, text, btnLabel, btnTo, btnAction }) {
-  return (
-    <div className="sm-empty sm-fade-in">
-      <div className="sm-empty-icon">
-        <i className={`bi ${icon}`}></i>
-      </div>
-      <div className="sm-empty-title">{title}</div>
-      <p className="sm-empty-text">{text}</p>
-      {btnTo && (
-        <Link to={btnTo} className="btn btn-success btn-sm px-4">
-          {btnLabel}
-        </Link>
-      )}
-      {btnAction && (
-        <button className="btn btn-success btn-sm px-4" onClick={btnAction}>
-          {btnLabel}
-        </button>
-      )}
-    </div>
-  );
-}
+import Toast from "../../components/Toast";
+import ReportFilterBar from "../../components/reports/ReportFilterBar";
+import ReportView from "../../components/reports/ReportView";
+import ReportDownloadButtons from "../../components/reports/ReportDownloadButtons";
+import { apiRequest, apiDownload } from "../../utils/api";
 
 function PageLoader({ text = "Loading..." }) {
   return (
@@ -42,6 +27,18 @@ function PageLoader({ text = "Loading..." }) {
   );
 }
 
+const REPORT_TYPES = [
+  { value: "zone-performance", label: "Zone Performance",      icon: "bi-geo-alt",        endpoint: "/admin/reports/zone-performance" },
+  { value: "user-activity",    label: "User Activity",          icon: "bi-people",         endpoint: "/admin/reports/user-activity" },
+  { value: "top-products",     label: "Top Selling Products",   icon: "bi-graph-up-arrow", endpoint: "/admin/reports/top-products" },
+];
+
+const LABEL_TO_TYPE = {
+  "Zone performance":      "zone-performance",
+  "User activity":         "user-activity",
+  "Top selling products":  "top-products",
+};
+
 function AdminReports() {
   const navItems = [
     { label: "Overview",  icon: "bi-grid-1x2",          path: "/admin/overview",  active: false },
@@ -51,137 +48,175 @@ function AdminReports() {
     { label: "Profile",   icon: "bi-person-circle",     path: "/admin/profile",   active: false },
   ];
 
-  const [reports,     setReports]     = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [lastPage,    setLastPage]    = useState(1);
-  const [total,       setTotal]       = useState(0);
-  const [perPage,     setPerPage]     = useState(15);
+  const [reportType, setReportType] = useState("zone-performance");
+  const [period,     setPeriod]     = useState("last_30_days");
+  const [dateFrom,   setDateFrom]   = useState("");
+  const [dateTo,     setDateTo]     = useState("");
 
-  const [reportType,  setReportType]  = useState("Sales summary");
-  const [dateFrom,    setDateFrom]    = useState("");
-  const [dateTo,      setDateTo]      = useState("");
-  const [generating,  setGenerating]  = useState(false);
-  const [successMsg,  setSuccessMsg]  = useState("");
+  const [report,     setReport]     = useState(null);
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState("");
+  const [toast,      setToast]      = useState(null);
+
+  // Report history
+  const [history,      setHistory]      = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState("");
+  const [currentPage,  setCurrentPage]  = useState(1);
+  const [lastPage,     setLastPage]     = useState(1);
+  const [total,        setTotal]        = useState(0);
+  const [perPage,      setPerPage]      = useState(15);
+  const [rowDownloading, setRowDownloading] = useState(null); // "reportId:format"
 
   useEffect(() => {
-    fetchReports(currentPage);
+    fetchHistory(currentPage);
   }, [currentPage]);
 
-  async function fetchReports(page = 1) {
+  async function fetchHistory(page = 1) {
     try {
-      setLoading(true);
-      setError("");
+      setHistoryLoading(true);
+      setHistoryError("");
       const res = await apiRequest(`/admin/reports?page=${page}`);
-
-      // res.data = Laravel paginator (through()); res.data.data = items array
       const paginated = res.data;
-      setReports(paginated.data    ?? []);
+      setHistory(paginated.data ?? []);
       setLastPage(paginated.last_page ?? 1);
-      setTotal(paginated.total    ?? 0);
+      setTotal(paginated.total ?? 0);
       setPerPage(paginated.per_page ?? 15);
     } catch (err) {
-      setError(err.message || "Failed to load reports.");
+      setHistoryError(err.message || "Failed to load report history.");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  function periodParams() {
+    const params = new URLSearchParams({ period });
+    if (period === "custom") {
+      params.set("date_from", dateFrom);
+      params.set("date_to", dateTo);
+    }
+    return params;
+  }
+
+  async function handleGenerate() {
+    const type = REPORT_TYPES.find((t) => t.value === reportType);
+    setLoading(true);
+    setError("");
+    try {
+      const res = await apiRequest(`${type.endpoint}?${periodParams().toString()}`);
+      setReport(res.data);
+    } catch (err) {
+      setError(err.message || "Failed to load report.");
+      setReport(null);
     } finally {
       setLoading(false);
     }
   }
 
-  const handleGenerate = async () => {
-    setGenerating(true);
-    setSuccessMsg("");
+  async function handleDownload(format) {
+    const type = REPORT_TYPES.find((t) => t.value === reportType);
+    const params = periodParams();
+    params.set("type", reportType);
+    params.set("format", format);
+
     try {
-      const res = await apiRequest("/admin/reports", "POST", {
-        report_type: reportType,
-        parameters:  { date_from: dateFrom || null, date_to: dateTo || null },
-      });
-
-      // Refresh page 1 so the new report appears at the top
-      if (currentPage === 1) {
-        fetchReports(1);
-      } else {
-        setCurrentPage(1);
-      }
-
-      setSuccessMsg(`Report "${res.data?.report_type}" generated successfully.`);
-      setTimeout(() => setSuccessMsg(""), 4000);
+      await apiDownload(`/admin/reports/export?${params.toString()}`, `${type.label}.${format}`);
+      setToast({ message: `${type.label} ${format.toUpperCase()} download started.`, type: "success" });
+      fetchHistory(1);
+      setCurrentPage(1);
     } catch (err) {
-      alert(`Failed to generate report: ${err.message}`);
-    } finally {
-      setGenerating(false);
+      setToast({ message: err.message || "Download failed.", type: "error" });
     }
-  };
+  }
+
+  async function handleHistoryDownload(row, format) {
+    const type = LABEL_TO_TYPE[row.report_type];
+    if (!type) {
+      setToast({ message: "Unknown report type for this history entry.", type: "error" });
+      return;
+    }
+
+    const key = `${row.report_id}:${format}`;
+    setRowDownloading(key);
+    try {
+      const params = new URLSearchParams({
+        type,
+        format,
+        period: row.parameters?.period || "last_30_days",
+      });
+      if (row.parameters?.date_from) params.set("date_from", row.parameters.date_from);
+      if (row.parameters?.date_to) params.set("date_to", row.parameters.date_to);
+
+      await apiDownload(`/admin/reports/export?${params.toString()}`, `${row.report_type}.${format}`);
+      setToast({ message: `${row.report_type} ${format.toUpperCase()} download started.`, type: "success" });
+    } catch (err) {
+      setToast({ message: err.message || "Download failed.", type: "error" });
+    } finally {
+      setRowDownloading(null);
+    }
+  }
 
   return (
     <DashboardLayout title="Reports" navItems={navItems}>
 
-      {/* Generate report form */}
-      <div className="dash-table-wrap" style={{ padding: "20px", marginBottom: "20px" }}>
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-        {successMsg && (
-          <div className="alert alert-success py-2 small mb-3">
-            <i className="bi bi-check-circle-fill me-1"></i>{successMsg}
-          </div>
-        )}
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "14px", alignItems: "end" }}>
-
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label htmlFor="reportType">Report type</label>
-            <select id="reportType" value={reportType} onChange={(e) => setReportType(e.target.value)}>
-              <option>Sales summary</option>
-              <option>Inventory</option>
-              <option>User activity</option>
-              <option>Zone performance</option>
-            </select>
-          </div>
-
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label htmlFor="dateFrom">From</label>
-            <input id="dateFrom" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-          </div>
-
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label htmlFor="dateTo">To</label>
-            <input id="dateTo" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-          </div>
-
-        </div>
-
-        <button
-          className="btn btn-success mt-3 d-flex align-items-center gap-2"
-          onClick={handleGenerate}
-          disabled={generating}
-        >
-          {generating ? (
-            <><span className="spinner-border spinner-border-sm me-2"></span>Generating...</>
-          ) : (
-            <><i className="bi bi-plus-circle"></i> Generate report</>
-          )}
-        </button>
+      {/* Report type tabs */}
+      <div className="d-flex flex-wrap gap-2 mb-3">
+        {REPORT_TYPES.map((t) => (
+          <button
+            key={t.value}
+            className={`btn btn-sm d-flex align-items-center gap-2 ${reportType === t.value ? "btn-success" : "btn-outline-success"}`}
+            onClick={() => { setReportType(t.value); setReport(null); }}
+          >
+            <i className={`bi ${t.icon}`}></i> {t.label}
+          </button>
+        ))}
       </div>
 
-      {/* Report history */}
-      {loading && <PageLoader text="Loading reports..." />}
+      <ReportFilterBar
+        period={period} setPeriod={setPeriod}
+        dateFrom={dateFrom} setDateFrom={setDateFrom}
+        dateTo={dateTo} setDateTo={setDateTo}
+        onApply={handleGenerate}
+        applying={loading}
+      />
 
-      {error && (
-        <div className="dash-error">
-          <i className="bi bi-exclamation-triangle-fill me-1"></i>{error}
+      {loading && <PageLoader text="Generating report..." />}
+      {error && <div className="dash-error"><i className="bi bi-exclamation-triangle-fill me-1"></i>{error}</div>}
+
+      {!loading && !error && report && (
+        <>
+          <div className="d-flex justify-content-end mb-3">
+            <ReportDownloadButtons onDownload={handleDownload} disabled={loading} />
+          </div>
+          <ReportView report={report} />
+        </>
+      )}
+
+      {!loading && !error && !report && (
+        <div className="sm-empty sm-fade-in">
+          <div className="sm-empty-icon"><i className="bi bi-file-earmark-bar-graph"></i></div>
+          <div className="sm-empty-title">No report generated yet</div>
+          <p className="sm-empty-text">Choose a report type and date range above, then click "Generate report".</p>
         </div>
       )}
 
-      {/* Empty state */}
-      {!loading && !error && reports.length === 0 && (
-        <EmptyState
-          icon="bi-file-earmark-bar-graph"
-          title="No reports generated yet"
-          text="Generate your first report to view marketplace analytics and summaries."
-        />
+      {/* Report history */}
+      <h6 className="mt-5 mb-3 text-muted">Report History</h6>
+
+      {historyLoading && <PageLoader text="Loading history..." />}
+      {historyError && <div className="dash-error"><i className="bi bi-exclamation-triangle-fill me-1"></i>{historyError}</div>}
+
+      {!historyLoading && !historyError && history.length === 0 && (
+        <div className="sm-empty sm-fade-in">
+          <div className="sm-empty-icon"><i className="bi bi-clock-history"></i></div>
+          <div className="sm-empty-title">No reports downloaded yet</div>
+          <p className="sm-empty-text">Every PDF/Excel export you generate above will be logged here.</p>
+        </div>
       )}
 
-      {/* Reports table */}
-      {!loading && !error && reports.length > 0 && (
+      {!historyLoading && !historyError && history.length > 0 && (
         <div className="card border-0 shadow-sm sm-fade-in">
           <div className="table-responsive">
             <table className="table table-hover align-middle table-striped-columns mb-0">
@@ -195,22 +230,28 @@ function AdminReports() {
                 </tr>
               </thead>
               <tbody>
-                {reports.map((report) => (
-                  <tr key={report.report_id}>
-                    <td>{report.report_type}</td>
+                {history.map((row) => (
+                  <tr key={row.report_id}>
+                    <td>{row.report_type}</td>
+                    <td>{row.generated_date ? new Date(row.generated_date).toLocaleString("en-KE") : "—"}</td>
+                    <td>{row.generated_by}</td>
                     <td>
-                      {report.generated_date
-                        ? new Date(report.generated_date).toLocaleDateString("en-KE")
-                        : "—"}
-                    </td>
-                    <td>{report.generated_by}</td>
-                    <td>
-                      <button
-                        className="btn btn-link btn-sm text-success p-0 d-flex align-items-center gap-1"
-                        onClick={() => alert("Download coming soon")}
-                      >
-                        <i className="bi bi-download"></i> Download
-                      </button>
+                      <div className="d-flex gap-2 justify-content-end">
+                        <button
+                          className="btn btn-link btn-sm text-success p-0"
+                          disabled={rowDownloading === `${row.report_id}:pdf`}
+                          onClick={() => handleHistoryDownload(row, "pdf")}
+                        >
+                          {rowDownloading === `${row.report_id}:pdf` ? <span className="spinner-border spinner-border-sm"></span> : "PDF"}
+                        </button>
+                        <button
+                          className="btn btn-link btn-sm text-success p-0"
+                          disabled={rowDownloading === `${row.report_id}:xlsx`}
+                          onClick={() => handleHistoryDownload(row, "xlsx")}
+                        >
+                          {rowDownloading === `${row.report_id}:xlsx` ? <span className="spinner-border spinner-border-sm"></span> : "Excel"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -220,14 +261,13 @@ function AdminReports() {
         </div>
       )}
 
-      {/* Pagination */}
-      {!error && total > 0 && (
+      {!historyError && total > 0 && (
         <PaginationBar
           page={currentPage}
           lastPage={lastPage}
           total={total}
           perPage={perPage}
-          loading={loading}
+          loading={historyLoading}
           onChange={(p) => setCurrentPage(p)}
         />
       )}

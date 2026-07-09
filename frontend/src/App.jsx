@@ -31,6 +31,7 @@ import FarmerSales        from "./pages/seller/FarmerSales";
 import FarmerSchedule     from "./pages/seller/FarmerSchedule";
 import SellerOrders       from "./pages/seller/SellerOrders";
 import SellerProfile      from "./pages/seller/SellerProfile";
+import FarmerReports      from "./pages/seller/FarmerReports";
 
 // Admin pages
 import AdminOverview      from "./pages/admin/AdminOverview";
@@ -97,6 +98,9 @@ export default function App() {
           }/>
           <Route path="/seller/profile" element={
             <ProtectedRoute allowedRoles={["seller"]}><SellerProfile /></ProtectedRoute>
+          }/>
+          <Route path="/seller/reports" element={
+            <ProtectedRoute allowedRoles={["seller"]}><FarmerReports /></ProtectedRoute>
           }/>
 
           {/* ── ADMIN ──────────────────────────────────────────── */}

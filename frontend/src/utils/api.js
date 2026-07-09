@@ -89,3 +89,42 @@ export async function apiUpload(endpoint, formData) {
 
   return data;
 }
+
+// ── File download (PDF/Excel report exports) ───────────────────────
+// The backend streams a binary file, not JSON, so this fetches it as a
+// blob and triggers a save-as via a throwaway <a> tag. Auth still needs
+// the Bearer header, which is why a plain <a href> can't be used.
+export async function apiDownload(endpoint, fallbackFilename = "download") {
+  const token = getToken();
+
+  const headers = { "Accept": "application/json" };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${BASE_URL}${endpoint}`, { headers });
+
+  if (!response.ok) {
+    const data    = await response.json().catch(() => null);
+    const message = data?.message || `Download failed: ${response.status}`;
+    const error   = new Error(message);
+    error.errors  = data?.errors || {};
+    error.status  = response.status;
+    throw error;
+  }
+
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const match        = disposition.match(/filename="?([^"]+)"?/);
+  const filename      = match ? match[1] : fallbackFilename;
+
+  const blob = await response.blob();
+  const url  = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href     = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}

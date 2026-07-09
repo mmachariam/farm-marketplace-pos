@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\SellerScheduleController;
 use App\Http\Controllers\Api\SellerSummaryController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\AdminReportController;
+use App\Http\Controllers\Api\FarmerReportController;
 use App\Http\Controllers\Api\AdminProfileController;
 use App\Http\Controllers\Api\AdminFarmerController;
 use App\Http\Controllers\Api\PasswordResetController;
@@ -114,6 +115,12 @@ Route::middleware(['auth:api', 'role:seller'])->prefix('seller')->group(function
     Route::post('schedule',                    [SellerScheduleController::class, 'store']);
     Route::delete('schedule/{id}',             [SellerScheduleController::class, 'destroy']);
 
+    // Farmer reports
+    Route::get('reports/inventory',            [FarmerReportController::class, 'inventory']);
+    Route::get('reports/sales',                [FarmerReportController::class, 'sales']);
+    Route::get('reports/top-products',         [FarmerReportController::class, 'topProducts']);
+    Route::get('reports/export',               [FarmerReportController::class, 'export']);
+
 });
 
 // ── Admin-only routes ────────────────────────────────────────────────
@@ -133,6 +140,10 @@ Route::middleware(['auth:api', 'role:admin'])->prefix('admin')->group(function (
     Route::get('overview',                 [AdminReportController::class, 'overview']);
     Route::get('reports',                  [AdminReportController::class, 'index']);
     Route::post('reports',                 [AdminReportController::class, 'store']);
+    Route::get('reports/zone-performance', [AdminReportController::class, 'zonePerformance']);
+    Route::get('reports/user-activity',    [AdminReportController::class, 'userActivity']);
+    Route::get('reports/top-products',     [AdminReportController::class, 'topProducts']);
+    Route::get('reports/export',           [AdminReportController::class, 'export']);
 
     // Admin profile
     Route::get('profile',                  [AdminProfileController::class, 'show']);

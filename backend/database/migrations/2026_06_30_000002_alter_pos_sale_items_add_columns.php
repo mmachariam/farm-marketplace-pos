@@ -8,8 +8,12 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Add all new columns first (table currently has created_at, updated_at after partial prior run)
+        
         Schema::table('pos_sale_items', function (Blueprint $table) {
+	    $table->dropColumn('id');
+});
+
+	Schema::table('pos_sale_items', function (Blueprint $table){
             $table->id('pos_item_id');
             $table->unsignedBigInteger('sale_id');
             $table->string('product_name', 100);
